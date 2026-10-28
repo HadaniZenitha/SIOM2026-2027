@@ -16,15 +16,28 @@ class ApprovalService
 {
     public function createApprovalFlow(Submission $submission): void
     {
-        $roles = [
-            1 => 'pembina_ormawa',
-            2 => 'kaprodi',
-            3 => 'kabag_kemahasiswaan',
-            4 => 'warek',
-        ];
+        $submission->loadMissing('ormawa');
+        $ormawa = $submission->ormawa;
 
-        foreach ($roles as $sequence => $roleName) {
+        // UKM, DPM, dan BEM merupakan organisasi tingkat universitas sehingga alurnya langsung ke Pembina -> Kabag Kemahasiswaan -> Warek
+        if ($ormawa && ($ormawa->isUkm() || $ormawa->isDpm() || $ormawa->isBem())) {
+            $roleNames = [
+                'pembina_ormawa',
+                'kabag_kemahasiswaan',
+                'warek',
+            ];
+        } else {
+            // HIMA (organisasi tingkat prodi) wajib persetujuan Kaprodi
+            $roleNames = [
+                'pembina_ormawa',
+                'kaprodi',
+                'kabag_kemahasiswaan',
+                'warek',
+            ];
+        }
 
+        $sequence = 1;
+        foreach ($roleNames as $roleName) {
             $role = Role::where('name', $roleName)->firstOrFail();
 
             ApprovalStep::create([
@@ -33,6 +46,7 @@ class ApprovalService
                 'sequence' => $sequence,
                 'status' => $sequence === 1 ? 'pending' : 'waiting',
             ]);
+            $sequence++;
         }
     }
 

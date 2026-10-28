@@ -503,12 +503,18 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Nama Kegiatan <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" wire:model="activity_name">
+                            <input type="text" class="form-control" wire:model="activity_name" placeholder="Contoh: Seminar Nasional Kesehatan 2026">
                             @error('activity_name') <small class="text-danger">{{ $message }}</small> @enderror
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Total Anggaran <span class="text-danger">*</span></label>
-                            <input type="number" min="1" step="0.01" class="form-control" wire:model="uploadedTotalAmount">
+                            <label class="form-label fw-semibold">Tanggal Pelaksanaan Kegiatan <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" wire:model="event_date" min="{{ now()->addDays(30)->toDateString() }}">
+                            <small class="text-muted d-block mt-1"><i class="bi bi-shield-check text-primary"></i> Wajib minimal 30 hari (1 bulan) dari hari ini.</small>
+                            @error('event_date') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Total Anggaran (Rp) <span class="text-danger">*</span></label>
+                            <input type="number" min="1" step="0.01" class="form-control" wire:model="uploadedTotalAmount" placeholder="Contoh: 5000000">
                             @error('uploadedTotalAmount') <small class="text-danger">{{ $message }}</small> @enderror
                         </div>
                         <div class="col-12">
@@ -625,7 +631,7 @@
                             <h6 class="fw-bold mb-3">Waktu & Tempat Pelaksanaan</h6>
                             <div class="row g-3">
                                 <div class="col-md-3"><label class="form-label small">Hari</label><input type="text" class="form-control" wire:model="event_day" placeholder="Sabtu"></div>
-                                <div class="col-md-3"><label class="form-label small">Tanggal <span class="text-danger">*</span></label><input type="date" class="form-control" wire:model="event_date"></div>
+                                <div class="col-md-3"><label class="form-label small">Tanggal <span class="text-danger">* (Min. H-30)</span></label><input type="date" class="form-control" wire:model="event_date" min="{{ now()->addDays(30)->format('Y-m-d') }}"></div>
                                 <div class="col-md-3"><label class="form-label small">Waktu Mulai <span class="text-danger">*</span></label><input type="time" class="form-control" wire:model="event_start_time"></div>
                                 <div class="col-md-3"><label class="form-label small">Waktu Selesai <span class="text-danger">*</span></label><input type="time" class="form-control" wire:model="event_end_time"></div>
                                 <div class="col-12"><label class="form-label small">Lokasi <span class="text-danger">*</span></label><input type="text" class="form-control" wire:model="event_location" placeholder="Gedung Aula Kampus"></div>

@@ -54,6 +54,7 @@
                             <th>No.</th>
                             <th>Kode</th>
                             <th>Nama Organisasi</th>
+                            <th>Kategori / Prodi</th>
                             <th>Deskripsi</th>
                             <th>Pagu</th>
                             <th>Terpakai</th>
@@ -68,6 +69,12 @@
                                 <td>{{ $ormawas->firstItem() + $loop->index }}</td>
                                 <td><strong>{{ $ormawa->code }}</strong></td>
                                 <td>{{ $ormawa->name }}</td>
+                                <td>
+                                    <span class="siom-admin-badge" style="text-transform: uppercase;">{{ $ormawa->type }}</span>
+                                    @if ($ormawa->type === 'hima' && $ormawa->programStudi)
+                                        <div style="font-size: 0.75rem; color: #64748b;">{{ $ormawa->programStudi->name }}</div>
+                                    @endif
+                                </td>
                                 <td>{{ $ormawa->description ?: '-' }}</td>
                                 @php($budget = $ormawa->budgets->first())
                                 <td>
@@ -169,6 +176,26 @@
                                 <label for="ormawa-code">Kode *</label>
                                 <input id="ormawa-code" type="text" wire:model="code" class="@error('code') is-invalid @enderror">
                                 @error('code') <span class="siom-admin-error">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="siom-admin-field siom-admin-span-6">
+                                <label for="ormawa-type">Jenis Organisasi *</label>
+                                <select id="ormawa-type" wire:model.live="type" class="@error('type') is-invalid @enderror">
+                                    <option value="hima">HIMA (Himpunan Mahasiswa Prodi)</option>
+                                    <option value="ukm">UKM (Unit Kegiatan Mahasiswa)</option>
+                                    <option value="bem">BEM (Badan Eksekutif Mahasiswa)</option>
+                                    <option value="dpm">DPM (Dewan Perwakilan Mahasiswa)</option>
+                                </select>
+                                @error('type') <span class="siom-admin-error">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="siom-admin-field siom-admin-span-6">
+                                <label for="ormawa-prodi">Program Studi (Khusus HIMA)</label>
+                                <select id="ormawa-prodi" wire:model="program_studi_id" @disabled($type !== 'hima') class="@error('program_studi_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Program Studi --</option>
+                                    @foreach ($programStudis as $prodi)
+                                        <option value="{{ $prodi->id }}">{{ $prodi->name }} ({{ $prodi->code }})</option>
+                                    @endforeach
+                                </select>
+                                @error('program_studi_id') <span class="siom-admin-error">{{ $message }}</span> @enderror
                             </div>
                             <div class="siom-admin-field siom-admin-span-12">
                                 <label for="ormawa-description">Deskripsi</label>

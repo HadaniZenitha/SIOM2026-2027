@@ -214,7 +214,7 @@ test('LPJ bergerak berurutan ke seluruh approver dan dapat diminta revisi', func
     $approvers = collect(['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'])
         ->mapWithKeys(fn (string $roleName) => [$roleName => operationalRole($roleName)]);
     $period = operationalPeriod();
-    $ormawa = Ormawa::create(['code' => 'BEM', 'name' => 'BEM']);
+    $ormawa = Ormawa::create(['code' => 'HIMA', 'name' => 'HIMA', 'type' => 'hima']);
     $secretary = User::factory()->create(['role_id' => $secretaryRole->id, 'ormawa_id' => $ormawa->id]);
     $submission = Submission::create([
         'period_id' => $period->id,
@@ -315,4 +315,48 @@ test('sekretaris dapat menghapus LPJ draft milik ormawanya', function () {
 test('default Livewire page layout points to the application layout', function () {
     expect(config('livewire.layout'))->toBe('layouts.app')
         ->and(view()->exists(config('livewire.layout')))->toBeTrue();
+});
+
+test('alur persetujuan LPJ membedakan ormawa HIMA (lewat kaprodi) dan UKM/DPM/BEM (tanpa kaprodi)', function () {
+    $secretaryRole = operationalRole('sekretaris_ormawa');
+    $roles = collect(['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'])
+        ->mapWithKeys(fn (string $roleName) => [$roleName => operationalRole($roleName)]);
+    $period = operationalPeriod();
+    $ukm = Ormawa::create(['code' => 'UKM_MUSIK', 'name' => 'UKM Musik', 'type' => 'ukm']);
+    $secretary = User::factory()->create(['role_id' => $secretaryRole->id, 'ormawa_id' => $ukm->id]);
+    $submission = Submission::create([
+        'period_id' => $period->id,
+        'ormawa_id' => $ukm->id,
+        'submitted_by' => $secretary->id,
+        'submission_number' => 'SUB/2026/LPJ_UKM',
+        'activity_name' => 'Konser Musik',
+        'status' => 'approved',
+        'total_amount' => 500,
+    ]);
+    $lpj = Lpj::create([
+        'submission_id' => $submission->id,
+        'period_id' => $period->id,
+        'ormawa_id' => $ukm->id,
+        'created_by' => $secretary->id,
+        'title' => 'LPJ Konser Musik',
+        'status' => 'draft',
+    ]);
+    LpjDocument::create([
+        'lpj_id' => $lpj->id,
+        'type' => 'nota',
+        'file_path' => 'lpj/receipt.pdf',
+        'file_name' => 'receipt.pdf',
+    ]);
+    LpjDocument::create([
+        'lpj_id' => $lpj->id,
+        'type' => 'dokumentasi',
+        'file_path' => 'lpj/activity.pdf',
+        'file_name' => 'activity.pdf',
+    ]);
+
+    app(LpjApprovalService::class)->submit($lpj);
+
+    // UKM LPJ only has 3 steps: Pembina -> Kabag -> Warek (no kaprodi)
+    expect($lpj->approvalSteps()->count())->toBe(3)
+        ->and($lpj->approvalSteps()->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))->exists())->toBeFalse();
 });

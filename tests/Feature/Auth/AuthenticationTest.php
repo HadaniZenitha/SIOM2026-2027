@@ -27,6 +27,25 @@ test('users can authenticate using the login screen', function () {
     $this->assertAuthenticated();
 });
 
+test('all users are redirected directly to dashboard on login even if intended url was set', function () {
+    $user = User::factory()->create();
+
+    session()->put('url.intended', '/some/other/page');
+
+    $component = Volt::test('pages.auth.login')
+        ->set('form.email', $user->email)
+        ->set('form.password', 'password');
+
+    $component->call('login');
+
+    $component
+        ->assertHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
+
+    expect(session('url.intended'))->toBeNull();
+    $this->assertAuthenticated();
+});
+
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
@@ -69,4 +88,14 @@ test('users can logout', function () {
         ->assertRedirect('/');
 
     $this->assertGuest();
+});
+
+test('prevent back history middleware adds no-cache headers to responses', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get('/dashboard');
+
+    expect($response->headers->get('Cache-Control'))->toContain('no-store')
+        ->and($response->headers->get('Cache-Control'))->toContain('no-cache')
+        ->and($response->headers->get('Pragma'))->toBe('no-cache');
 });

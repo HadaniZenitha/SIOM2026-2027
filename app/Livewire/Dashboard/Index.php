@@ -12,6 +12,7 @@ use App\Services\DocumentGeneratorService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -64,6 +65,76 @@ class Index extends Component
 
         $this->reset('signatureFile');
         session()->flash('success', 'Tanda tangan berhasil disimpan.');
+    }
+
+    public function saveDrawnSignature(string $signatureDataUrl): void
+    {
+        $user = $this->currentUser();
+        abort_unless($user->hasAnyRole([
+            'pembina_ormawa',
+            'kaprodi',
+            'kabag_kemahasiswaan',
+            'warek',
+        ]), 403);
+
+        if (! preg_match('/^data:image\/(png|jpeg);base64,/', $signatureDataUrl)) {
+            $this->addError('signatureDrawn', 'Format tanda tangan digital tidak valid.');
+
+            return;
+        }
+
+        $base64Data = substr($signatureDataUrl, strpos($signatureDataUrl, ',') + 1);
+        $decoded = base64_decode($base64Data, true);
+
+        if ($decoded === false || strlen($decoded) < 200) {
+            $this->addError('signatureDrawn', 'Coretan tanda tangan tidak boleh kosong.');
+
+            return;
+        }
+
+        if (strlen($decoded) > 2 * 1024 * 1024) {
+            $this->addError('signatureDrawn', 'Ukuran tanda tangan digital melebihi batas 2 MB.');
+
+            return;
+        }
+
+        $imageInfo = @getimagesizefromstring($decoded);
+        if ($imageInfo === false) {
+            $this->addError('signatureDrawn', 'Berkas gambar tanda tangan tidak valid.');
+
+            return;
+        }
+
+        [$width, $height] = $imageInfo;
+        if ($width > 2000 || $height > 1000) {
+            $this->addError('signatureDrawn', 'Dimensi tanda tangan digital melebihi batas 2000x1000 piksel.');
+
+            return;
+        }
+
+        $oldPath = $user->signature_path;
+        $filename = 'signatures/sig_'.Str::random(36).'.png';
+
+        try {
+            Storage::disk('local')->put($filename, $decoded);
+            $user->signature_path = $filename;
+            $user->save();
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($filename);
+
+            throw $exception;
+        }
+
+        if (
+            $oldPath
+            && $oldPath !== $filename
+            && ! ApprovalStep::query()->where('signature_path', $oldPath)->exists()
+            && ! LpjApprovalStep::query()->where('signature_path', $oldPath)->exists()
+        ) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        session()->flash('success', 'Tanda tangan digital berhasil disimpan.');
     }
 
     public function downloadSignedProposal(
@@ -125,7 +196,10 @@ class Index extends Component
             if ($user->hasRole('pembina_ormawa')) {
                 $approvedQuery->where('ormawa_id', $user->ormawa_id);
             } elseif ($user->hasRole('kaprodi')) {
-                $approvedQuery->whereHas('submitter', fn ($query) => $query->where('program_studi_id', $user->program_studi_id));
+                $approvedQuery->where(function ($query) use ($user): void {
+                    $query->whereHas('submitter', fn ($sub) => $sub->where('program_studi_id', $user->program_studi_id))
+                        ->orWhereHas('ormawa', fn ($sub) => $sub->where('program_studi_id', $user->program_studi_id));
+                });
             }
             $approvedProposals = $approvedQuery->latest('submitted_at')->limit(10)->get();
 
@@ -143,10 +217,10 @@ class Index extends Component
             if ($user->hasRole('pembina_ormawa')) {
                 $approvedLpjQuery->where('ormawa_id', $user->ormawa_id);
             } elseif ($user->hasRole('kaprodi')) {
-                $approvedLpjQuery->whereHas(
-                    'submission.submitter',
-                    fn ($query) => $query->where('program_studi_id', $user->program_studi_id)
-                );
+                $approvedLpjQuery->where(function ($query) use ($user): void {
+                    $query->whereHas('submission.submitter', fn ($sub) => $sub->where('program_studi_id', $user->program_studi_id))
+                        ->orWhereHas('ormawa', fn ($sub) => $sub->where('program_studi_id', $user->program_studi_id));
+                });
             }
             $approvedLpjs = $approvedLpjQuery->limit(10)->get();
         }
@@ -172,6 +246,11 @@ class Index extends Component
                 ->get();
         }
 
+        $savedSignaturePreview = null;
+        if ($isApprover && $user->signature_path && Storage::disk('local')->exists($user->signature_path)) {
+            $savedSignaturePreview = 'data:image/png;base64,'.base64_encode((string) Storage::disk('local')->get($user->signature_path));
+        }
+
         return view('livewire.dashboard.index', [
             'user' => $user,
             'activePeriod' => Period::query()
@@ -184,6 +263,7 @@ class Index extends Component
             'trackedSubmissions' => $trackedSubmissions,
             'trackedLpjs' => $trackedLpjs,
             'isApprover' => $isApprover,
+            'savedSignaturePreview' => $savedSignaturePreview,
         ]);
     }
 
@@ -194,7 +274,10 @@ class Index extends Component
         return $user->hasRole('superadmin')
             || ($user->hasRole('sekretaris_ormawa') && $submission->ormawa_id === $user->ormawa_id)
             || ($user->hasRole('pembina_ormawa') && $submission->ormawa_id === $user->ormawa_id)
-            || ($user->hasRole('kaprodi') && $submission->submitter?->program_studi_id === $user->program_studi_id)
+            || ($user->hasRole('kaprodi') && (
+                $submission->submitter?->program_studi_id === $user->program_studi_id
+                || $submission->ormawa?->program_studi_id === $user->program_studi_id
+            ))
             || $user->hasAnyRole(['kabag_kemahasiswaan', 'warek']);
     }
 

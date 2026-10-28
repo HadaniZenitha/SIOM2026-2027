@@ -13,6 +13,8 @@ class Ormawa extends Model
     protected $fillable = [
         'name',
         'code',
+        'type',
+        'program_studi_id',
         'description',
         'is_active',
     ];
@@ -20,6 +22,11 @@ class Ormawa extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function programStudi()
+    {
+        return $this->belongsTo(ProgramStudi::class);
+    }
 
     public function users()
     {
@@ -93,6 +100,10 @@ class Ormawa extends Model
             return 'ketua_dewan';
         }
 
+        if ($this->isUkm()) {
+            return 'ketua_ukm';
+        }
+
         return 'ketua_himpunan';
     }
 
@@ -101,6 +112,7 @@ class Ormawa extends Model
         return match ($this->leadershipPosition()) {
             'presiden_mahasiswa' => 'Presiden Mahasiswa',
             'ketua_dewan' => 'Ketua Dewan',
+            'ketua_ukm' => 'Ketua UKM',
             default => 'Ketua Himpunan',
         };
     }
@@ -111,9 +123,15 @@ class Ormawa extends Model
             return null;
         }
 
-        return $this->isBem()
-            ? 'wakil_presiden_mahasiswa'
-            : 'wakil_ketua_himpunan';
+        if ($this->isBem()) {
+            return 'wakil_presiden_mahasiswa';
+        }
+
+        if ($this->isUkm()) {
+            return 'wakil_ketua_ukm';
+        }
+
+        return 'wakil_ketua_himpunan';
     }
 
     public function deputyLeadershipTitle(): ?string
@@ -122,9 +140,11 @@ class Ormawa extends Model
             return null;
         }
 
-        return $this->isBem()
-            ? 'Wakil Presiden Mahasiswa'
-            : 'Wakil Ketua Himpunan';
+        return match ($this->deputyLeadershipPosition()) {
+            'wakil_presiden_mahasiswa' => 'Wakil Presiden Mahasiswa',
+            'wakil_ketua_ukm' => 'Wakil Ketua UKM',
+            default => 'Wakil Ketua Himpunan',
+        };
     }
 
     public function formatMemberPosition(?string $position, ?int $positionNumber = null): string
@@ -133,6 +153,7 @@ class Ormawa extends Model
 
         if ($positionNumber === null || ! in_array($position, [
             'wakil_ketua_himpunan',
+            'wakil_ketua_ukm',
             'wakil_presiden_mahasiswa',
         ], true)) {
             return $title;
@@ -141,16 +162,32 @@ class Ormawa extends Model
         return $title.' '.$this->toRomanNumeral($positionNumber);
     }
 
-    private function isBem(): bool
+    public function isBem(): bool
     {
-        return mb_strtoupper(trim($this->code)) === 'BEM'
+        return $this->type === 'bem'
+            || mb_strtoupper(trim($this->code)) === 'BEM'
             || Str::contains(Str::lower($this->name), 'badan eksekutif mahasiswa');
     }
 
-    private function isDpm(): bool
+    public function isDpm(): bool
     {
-        return mb_strtoupper(trim($this->code)) === 'DPM'
+        return $this->type === 'dpm'
+            || mb_strtoupper(trim($this->code)) === 'DPM'
             || Str::contains(Str::lower($this->name), 'dewan perwakilan mahasiswa');
+    }
+
+    public function isUkm(): bool
+    {
+        return $this->type === 'ukm'
+            || str_starts_with(mb_strtoupper(trim($this->code)), 'UKM')
+            || Str::contains(Str::lower($this->name), 'unit kegiatan mahasiswa');
+    }
+
+    public function isHima(): bool
+    {
+        return $this->type === 'hima'
+            || str_starts_with(mb_strtoupper(trim($this->code)), 'HIMA')
+            || Str::contains(Str::lower($this->name), 'himpunan mahasiswa');
     }
 
     private function toRomanNumeral(int $number): string

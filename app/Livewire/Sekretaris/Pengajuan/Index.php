@@ -96,6 +96,26 @@ class Index extends Component
         }
     }
 
+    public function downloadNotaDinas(
+        int $submissionId,
+        DocumentGeneratorService $generator
+    ): ?BinaryFileResponse {
+        $submission = $this->findSubmission($submissionId);
+
+        try {
+            $filePath = $generator->generateNotaDinas($submission);
+
+            return response()->download(
+                Storage::disk('public')->path($filePath),
+                'Nota_Dinas_'.str($submission->activity_name)->slug().'.docx'
+            );
+        } catch (RuntimeException $exception) {
+            session()->flash('error', 'Gagal mengunduh Nota Dinas: '.$exception->getMessage());
+
+            return null;
+        }
+    }
+
     public function downloadSignedProposal(
         int $submissionId,
         DocumentGeneratorService $generator

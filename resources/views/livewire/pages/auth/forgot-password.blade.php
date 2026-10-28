@@ -36,9 +36,11 @@ new #[Layout('layouts.guest')] class extends Component
     }
 }; ?>
 
-<div>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
+<div class="siom-guest-card">
+    <div class="siom-guest-card-heading">
+        <span class="siom-login-form-tag"><i class="bi bi-key-fill me-1"></i> RESET KATA SANDI</span>
+        <h1 class="siom-login-form-title">Lupa Kata Sandi?</h1>
+        <p class="siom-login-form-sub">Masukkan alamat email resmi terdaftar Anda. Sistem akan mengirimkan tautan untuk mengatur ulang kata sandi.</p>
     </div>
 
     <!-- Session Status -->
@@ -46,16 +48,25 @@ new #[Layout('layouts.guest')] class extends Component
 
     <form wire:submit="sendPasswordResetLink">
         <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="email" id="email" class="block mt-1 w-full" type="email" name="email" required autofocus />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        <div class="siom-form-group">
+            <label for="email" class="siom-form-label">
+                <i class="bi bi-envelope-fill text-primary"></i> Alamat Email Terdaftar <span style="color: #ef4444;">*</span>
+            </label>
+            <div class="siom-input-wrap">
+                <i class="bi bi-at siom-input-icon"></i>
+                <input wire:model="email" id="email" class="siom-form-control" type="email" name="email" required autofocus placeholder="contoh: nama@siom.test" />
+            </div>
+            <x-input-error :messages="$errors->get('email')" class="mt-1" />
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Email Password Reset Link') }}
-            </x-primary-button>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <a href="{{ route('login') }}" class="siom-link-forgot" wire:navigate>
+                <i class="bi bi-arrow-left"></i> Kembali ke Login
+            </a>
+
+            <button type="submit" class="siom-pill-btn siom-pill-blue" style="padding: 0.6rem 1.4rem; border: 2px solid #0f172a; border-radius: 9999px; font-family: 'Fredoka', sans-serif; font-weight: 700; box-shadow: 2px 2px 0px #0f172a;">
+                <i class="bi bi-send-fill me-1"></i> Kirim Tautan Reset
+            </button>
         </div>
     </form>
 </div>

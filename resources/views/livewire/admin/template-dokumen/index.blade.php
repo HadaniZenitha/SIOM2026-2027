@@ -49,13 +49,26 @@
                         </div>
 
                         <div class="siom-admin-span-6 siom-admin-field">
+                            <label for="template-ormawa-category">Kategori Ormawa</label>
+                            <select id="template-ormawa-category" wire:model="ormawa_category">
+                                <option value="">Semua Jenis Ormawa (HIMA, UKM, BEM, DPM)</option>
+                                <option value="hima">HIMA & UKM (pakai kolom Kaprodi)</option>
+                                <option value="bem">BEM & DPM (tanpa kolom Kaprodi)</option>
+                            </select>
+                            <span class="siom-admin-help">Pilih sesuai format dokumen yang berbeda placeholder tanda tangannya.</span>
+                            @error('ormawa_category') <span class="siom-admin-error">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="siom-admin-span-6 siom-admin-field">
                             <label for="template-file">File Template (.docx)</label>
                             <input id="template-file" type="file" wire:model="file" accept=".docx">
                             <span class="siom-admin-help">File MS Word (.docx) yang sudah berisi tag placeholder.</span>
                             <span class="siom-admin-help">
-                                Placeholder tanda tangan: <code>${signature_pembina_ormawa}</code>,
+                                Placeholder HIMA/UKM: <code>${signature_pembina_ormawa}</code>,
                                 <code>${signature_kaprodi}</code>, <code>${signature_kabag_kemahasiswaan}</code>,
-                                dan <code>${signature_warek}</code>.
+                                <code>${signature_warek}</code>.<br>
+                                Placeholder BEM/DPM: <code>${signature_presma}</code>,
+                                <code>${signature_kabag_kemahasiswaan}</code>, <code>${signature_warek}</code>.
                             </span>
                             @error('file') <span class="siom-admin-error">{{ $message }}</span> @enderror
                         </div>
@@ -81,6 +94,7 @@
                         <th style="width: 56px;">No</th>
                         <th>Nama Template</th>
                         <th>Jenis</th>
+                        <th>Kategori Ormawa</th>
                         <th>Periode</th>
                         <th>Versi</th>
                         <th>Status</th>
@@ -102,11 +116,23 @@
                                     <span class="siom-admin-badge siom-admin-badge-draft">{{ ucwords(str_replace('_', ' ', $template->type)) }}</span>
                                 @endif
                             </td>
+                            <td>
+                                <select wire:change="updateCategory({{ $template->id }}, $event.target.value)"
+                                    class="siom-admin-field-select"
+                                    style="padding: 4px 8px; font-size: 0.825rem; font-weight: 600; border-radius: 6px; border: 1px solid #CBD5E1; background: #F8FAFC; color: #1E293B; cursor: pointer;">
+                                    <option value="" @selected(!$template->ormawa_category)>Semua Ormawa</option>
+                                    <option value="hima" @selected($template->ormawa_category === 'hima')>HIMA & UKM</option>
+                                    <option value="bem" @selected($template->ormawa_category === 'bem')>BEM & DPM</option>
+                                </select>
+                            </td>
                             <td>{{ $template->period?->name ?? 'Semua Periode' }}</td>
                             <td>v{{ $template->version }}</td>
                             <td>
-                                <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="toggleStatus({{ $template->id }})">
-                                    {{ $template->is_active ? 'Aktif' : 'Nonaktif' }}
+                                <button type="button"
+                                    class="siom-admin-btn siom-admin-btn-sm"
+                                    style="{{ $template->is_active ? 'background:#10B981;color:#fff;border-color:#059669;' : 'background:#F1F5F9;color:#64748B;' }}"
+                                    wire:click="toggleStatus({{ $template->id }})">
+                                    {{ $template->is_active ? '✓ Aktif' : '✗ Nonaktif' }}
                                 </button>
                             </td>
                             <td>

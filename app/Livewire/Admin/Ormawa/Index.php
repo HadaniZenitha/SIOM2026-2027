@@ -27,6 +27,10 @@ class Index extends Component
 
     public string $code = '';
 
+    public string $type = 'hima';
+
+    public ?int $program_studi_id = null;
+
     public string $description = '';
 
     public bool $is_active = true;
@@ -66,6 +70,8 @@ class Index extends Component
                 'max:50',
                 Rule::unique('ormawas', 'code')->ignore($this->ormawaId),
             ],
+            'type' => ['nullable', 'string', 'in:hima,ukm,bem,dpm'],
+            'program_studi_id' => ['nullable', 'exists:program_studis,id'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];
@@ -74,7 +80,10 @@ class Index extends Component
     public function render(): View
     {
         $ormawas = Ormawa::query()
-            ->with(['budgets' => fn ($query) => $query->where('period_id', $this->selectedPeriodId)])
+            ->with([
+                'programStudi',
+                'budgets' => fn ($query) => $query->where('period_id', $this->selectedPeriodId),
+            ])
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($query): void {
                     $query->where('name', 'like', '%'.$this->search.'%')
@@ -87,6 +96,7 @@ class Index extends Component
         return view('livewire.admin.ormawa.index', [
             'ormawas' => $ormawas,
             'periods' => Period::query()->orderByDesc('start_date')->orderByDesc('id')->get(),
+            'programStudis' => \App\Models\ProgramStudi::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -104,6 +114,8 @@ class Index extends Component
         $this->ormawaId = $ormawa->id;
         $this->name = $ormawa->name;
         $this->code = $ormawa->code;
+        $this->type = $ormawa->type ?? 'hima';
+        $this->program_studi_id = $ormawa->program_studi_id;
         $this->description = $ormawa->description ?? '';
         $this->is_active = $ormawa->is_active;
 
@@ -114,11 +126,15 @@ class Index extends Component
     {
         $this->validate();
 
+        $type = $this->type ?: 'hima';
+
         Ormawa::updateOrCreate(
             ['id' => $this->ormawaId],
             [
                 'name' => $this->name,
                 'code' => $this->code,
+                'type' => $type,
+                'program_studi_id' => $type === 'hima' ? $this->program_studi_id : null,
                 'description' => $this->description ?: null,
                 'is_active' => $this->is_active,
             ]
@@ -266,9 +282,12 @@ class Index extends Component
             'ormawaId',
             'name',
             'code',
+            'type',
+            'program_studi_id',
             'description',
         ]);
 
+        $this->type = 'hima';
         $this->is_active = true;
         $this->showForm = false;
         $this->resetValidation();

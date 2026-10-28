@@ -49,7 +49,14 @@ class LpjApprovalService
             if ($lpj->approvalSteps()->exists()) {
                 throw new RuntimeException('Alur persetujuan LPJ sudah tersedia.');
             }
-            $roleNames = ['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'];
+            $lpj->loadMissing(['ormawa', 'submission.ormawa']);
+            $ormawa = $lpj->submission?->ormawa ?? $lpj->ormawa;
+
+            if ($ormawa && ($ormawa->isUkm() || $ormawa->isDpm() || $ormawa->isBem())) {
+                $roleNames = ['pembina_ormawa', 'kabag_kemahasiswaan', 'warek'];
+            } else {
+                $roleNames = ['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'];
+            }
             foreach ($roleNames as $index => $roleName) {
                 $role = Role::query()->where('name', $roleName)->firstOrFail();
                 LpjApprovalStep::create([
