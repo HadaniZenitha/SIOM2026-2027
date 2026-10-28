@@ -251,7 +251,11 @@ class Create extends Component
                 'benefits.*' => ['nullable', 'string', 'max:1000'],
                 'target_participants' => ['required', 'string'],
                 'event_day' => ['nullable', 'string', 'max:30'],
-                'event_date' => ['required', 'date'],
+                'event_date' => [
+                    'required',
+                    'date',
+                    'after_or_equal:'.now()->addDays(30)->toDateString(),
+                ],
                 'event_start_time' => ['required'],
                 'event_end_time' => ['required'],
                 'event_location' => ['required', 'string', 'max:255'],
@@ -453,6 +457,11 @@ class Create extends Component
         $data = $this->validate([
             'activity_name' => ['required', 'string', 'max:255'],
             'uploadedTotalAmount' => ['required', 'numeric', 'min:1', 'max:9999999999999.99'],
+            'event_date' => [
+                'required',
+                'date',
+                'after_or_equal:'.now()->addDays(30)->toDateString(),
+            ],
             'proposalUpload' => [
                 $existingDocument ? 'nullable' : 'required',
                 'file',
@@ -493,12 +502,16 @@ class Create extends Component
                         'nota_number' => $this->generateNotaNumber(),
                         'activity_name' => $data['activity_name'],
                         'total_amount' => $data['uploadedTotalAmount'],
+                        'event_date' => $data['event_date'],
+                        'activity_date' => $data['event_date'],
                         'status' => 'draft',
                     ]);
 
                 $submission->update([
                     'activity_name' => $data['activity_name'],
                     'total_amount' => $data['uploadedTotalAmount'],
+                    'event_date' => $data['event_date'],
+                    'activity_date' => $data['event_date'],
                 ]);
                 $submission->items()->delete();
                 $submission->items()->create([
@@ -791,6 +804,15 @@ class Create extends Component
         $ormawaName = Str::contains(strtoupper($this->ormawa->name), 'BEM') ? 'BEM' : 'HIMA';
 
         return "ND / {$formattedCount} / {$month} / ".now()->format('Y')." / {$ormawaName}";
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'event_date.after_or_equal' => 'Tanggal pelaksanaan kegiatan minimal 1 bulan (30 hari) dari tanggal pengajuan proposal.',
+            'proposalUpload.mimes' => 'Format file proposal yang diunggah harus berekstensi .docx atau .pdf.',
+            'proposalUpload.max' => 'Ukuran file proposal maksimal 20 MB.',
+        ];
     }
 
     public function render(): View

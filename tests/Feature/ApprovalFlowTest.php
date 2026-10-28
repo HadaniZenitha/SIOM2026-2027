@@ -43,8 +43,9 @@ function createApprovalFlowFixture(): array
     ]);
 
     $ormawa = Ormawa::create([
-        'code' => 'BEM',
-        'name' => 'BEM',
+        'code' => 'HIMA_IF',
+        'name' => 'HIMA Informatika',
+        'type' => 'hima',
     ]);
 
     $submitter = User::factory()->create([
@@ -173,6 +174,47 @@ test('approver cannot store a non-image as a signature', function () {
     expect($user->fresh()->signature_path)->toBeNull();
 });
 
+test('approver can store a drawn digital signature from the dashboard', function () {
+    Storage::fake('local');
+    $role = Role::create(['name' => 'pembina_ormawa', 'display_name' => 'Pembina Ormawa']);
+    $user = User::factory()->create(['role_id' => $role->id]);
+
+    $img = imagecreatetruecolor(100, 50);
+    imagesavealpha($img, true);
+    $transparent = imagecolorallocatealpha($img, 0, 0, 0, 127);
+    imagefill($img, 0, 0, $transparent);
+    $color = imagecolorallocate($img, 15, 23, 42);
+    imageline($img, 10, 10, 90, 40, $color);
+    ob_start();
+    imagepng($img);
+    $pngBytes = ob_get_clean();
+    imagedestroy($img);
+    $validDataUrl = 'data:image/png;base64,'.base64_encode($pngBytes);
+
+    Livewire::actingAs($user)
+        ->test(DashboardIndex::class)
+        ->call('saveDrawnSignature', $validDataUrl)
+        ->assertHasNoErrors()
+        ->assertSee('Tanda tangan digital berhasil disimpan.');
+
+    $path = $user->fresh()->signature_path;
+    expect($path)->toStartWith('signatures/sig_')
+        ->and(Storage::disk('local')->exists($path))->toBeTrue();
+});
+
+test('approver cannot store an empty or invalid drawn digital signature', function () {
+    Storage::fake('local');
+    $role = Role::create(['name' => 'pembina_ormawa', 'display_name' => 'Pembina Ormawa']);
+    $user = User::factory()->create(['role_id' => $role->id]);
+
+    Livewire::actingAs($user)
+        ->test(DashboardIndex::class)
+        ->call('saveDrawnSignature', 'invalid-base64-data')
+        ->assertHasErrors('signatureDrawn');
+
+    expect($user->fresh()->signature_path)->toBeNull();
+});
+
 test('approver dashboard shows approved proposals and the complete decision history', function () {
     $fixture = createApprovalFlowFixture();
     $submission = $fixture['submission'];
@@ -255,7 +297,7 @@ test('sekretaris melihat jabatan peninjau pada status pengajuan yang menunggu pe
 
     Livewire::actingAs($fixture['submitter'])
         ->test(SubmissionIndex::class)
-        ->assertSee('Sedang ditinjau oleh Pembina Ormawa');
+        ->assertSee('Ditinjau Pembina Ormawa');
 });
 
 test('approver dapat mengirim permintaan revisi melalui halaman detail', function () {
@@ -292,7 +334,7 @@ test('sekretaris dapat menyimpan draft dengan tujuan kegiatan sebagai teks', fun
         ->set('background', 'Latar belakang kegiatan.')
         ->set('objectives', ['Meningkatkan pengetahuan peserta.', 'Mendorong kolaborasi.'])
         ->set('target_participants', 'Mahasiswa')
-        ->set('event_date', '2026-11-01')
+        ->set('event_date', now()->addDays(35)->toDateString())
         ->set('event_start_time', '08:00')
         ->set('event_end_time', '09:00')
         ->set('event_location', 'Aula Kampus')
@@ -351,7 +393,7 @@ test('sekretaris dapat memperbaiki dan mengirim ulang pengajuan pada tahap revis
         ->set('background', 'Latar belakang kegiatan.')
         ->set('objectives', ['Meningkatkan pengetahuan peserta.'])
         ->set('target_participants', '50 mahasiswa')
-        ->set('event_date', '2026-11-01')
+        ->set('event_date', now()->addDays(35)->toDateString())
         ->set('event_start_time', '08:00')
         ->set('event_end_time', '09:00')
         ->set('event_location', 'Aula Kampus')
@@ -396,4 +438,43 @@ test('penolakan melalui halaman detail mewajibkan alasan dan menghentikan alur',
         ->toBe('rejected')
         ->and($submission->approvalLogs()->value('action'))
         ->toBe('rejected');
+});
+
+test('alur persetujuan membedakan ormawa HIMA (lewat kaprodi) dan UKM/DPM (tanpa kaprodi)', function () {
+    $fixture = createApprovalFlowFixture();
+    $himaSubmission = $fixture['submission'];
+    app(SubmissionService::class)->submit($himaSubmission);
+
+    // HIMA memiliki 4 tahap (Pembina -> Kaprodi -> Kabag -> Warek)
+    expect($himaSubmission->approvalSteps()->count())->toBe(4)
+        ->and($himaSubmission->approvalSteps()->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))->exists())->toBeTrue();
+
+    // Buat UKM
+    $ukm = Ormawa::create([
+        'code' => 'UKM_TEST',
+        'name' => 'UKM Robotika',
+        'type' => 'ukm',
+        'is_active' => true,
+    ]);
+    \App\Models\OrganizationBudget::create([
+        'period_id' => $himaSubmission->period_id,
+        'ormawa_id' => $ukm->id,
+        'allocated_amount' => 5000000,
+        'used_amount' => 0,
+        'remaining_amount' => 5000000,
+    ]);
+    $ukmSubmission = Submission::create([
+        'period_id' => $himaSubmission->period_id,
+        'ormawa_id' => $ukm->id,
+        'submitted_by' => $fixture['submitter']->id,
+        'submission_number' => 'SUB/2026/UKM001',
+        'activity_name' => 'Kontes Robot',
+        'total_amount' => 1000000,
+        'status' => 'draft',
+    ]);
+    app(SubmissionService::class)->submit($ukmSubmission);
+
+    // UKM hanya memiliki 3 tahap dan TIDAK melewati kaprodi
+    expect($ukmSubmission->approvalSteps()->count())->toBe(3)
+        ->and($ukmSubmission->approvalSteps()->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))->exists())->toBeFalse();
 });

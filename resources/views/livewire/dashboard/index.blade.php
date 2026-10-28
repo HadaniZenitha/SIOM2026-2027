@@ -32,6 +32,108 @@
         .siom-dashboard .siom-sign-form .siom-field { flex: 1; min-width: 0; }
         .siom-dashboard .siom-field label { display: block; margin-bottom: .35rem; font-size: .85rem; font-weight: 700; }
         .siom-dashboard .siom-field .form-control { width: 100%; }
+        .siom-dashboard .siom-sign-tabs {
+            display: flex;
+            gap: .5rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: .75rem;
+        }
+        .siom-dashboard .siom-sign-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .45rem .95rem;
+            border: 2px solid transparent;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+            font: 700 .85rem 'Plus Jakarta Sans', sans-serif;
+            cursor: pointer;
+            transition: all .15s ease;
+        }
+        .siom-dashboard .siom-sign-tab-btn.is-active {
+            background: #0f172a;
+            color: #fff;
+            border-color: #0f172a;
+            box-shadow: 2px 2px 0 #3b82f6;
+        }
+        .siom-dashboard .siom-sign-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+        @media (max-width: 860px) {
+            .siom-dashboard .siom-sign-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .siom-dashboard .siom-canvas-wrapper {
+            position: relative;
+            background: #ffffff;
+            border: 2.5px solid #0f172a;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 3px 3px 0 #0f172a;
+            touch-action: none;
+        }
+        .siom-dashboard .siom-canvas-guide {
+            position: absolute;
+            bottom: 38px;
+            left: 20px;
+            right: 20px;
+            border-bottom: 1.5px dashed #cbd5e1;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: .75rem;
+            font-weight: 600;
+            padding-bottom: 4px;
+        }
+        .siom-dashboard .siom-sign-canvas {
+            display: block;
+            width: 100%;
+            height: 200px;
+            cursor: crosshair;
+        }
+        .siom-dashboard .siom-canvas-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: .5rem;
+            margin-top: .75rem;
+            flex-wrap: wrap;
+        }
+        .siom-dashboard .siom-preview-card {
+            background: #f8fafc;
+            border: 2px dashed #94a3b8;
+            border-radius: 14px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .siom-dashboard .siom-checkerboard {
+            background-color: #ffffff;
+            background-image: linear-gradient(45deg, #f1f5f9 25%, transparent 25%),
+                              linear-gradient(-45deg, #f1f5f9 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #f1f5f9 75%),
+                              linear-gradient(-45deg, transparent 75%, #f1f5f9 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            min-height: 110px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: .75rem;
+        }
+        .siom-dashboard .siom-checkerboard img {
+            max-height: 90px;
+            max-width: 100%;
+            object-fit: contain;
+        }
         .siom-dashboard .btn {
             display: inline-flex;
             align-items: center;
@@ -156,26 +258,103 @@
     @endif
 
     @if ($isApprover)
-        <section class="card">
+        <section class="card" x-data="signatureCanvas()" x-init="initCanvas()">
             <div class="card-body">
                 <div class="siom-panel-head">
                     <div>
                         <h2 class="h5">Tanda Tangan Persetujuan</h2>
-                        <p class="text-muted">PNG/JPG, maksimal 2 MB. Tanda tangan visual; snapshot melekat pada keputusan berikutnya.</p>
+                        <p class="text-muted">Tanda tangan digital transparan dan seragam untuk pengesahan Proposal & LPJ.</p>
                     </div>
                     <span class="badge {{ $user->signature_path ? 'bg-success' : 'bg-warning' }}">
                         {{ $user->signature_path ? 'Tanda tangan tersimpan' : 'Belum ada tanda tangan' }}
                     </span>
                 </div>
-                <form wire:submit="uploadSignature" class="siom-sign-form">
-                    <div class="siom-field">
-                        <label for="signatureFile">Pilih gambar tanda tangan</label>
-                        <input id="signatureFile" type="file" class="form-control" wire:model="signatureFile" accept=".png,.jpg,.jpeg">
-                        @error('signatureFile') <small class="text-danger">{{ $message }}</small> @enderror
-                        <span wire:loading wire:target="signatureFile" class="text-muted">Mengunggah…</span>
+
+                <div class="siom-sign-tabs">
+                    <button type="button" class="siom-sign-tab-btn" :class="{ 'is-active': mode === 'draw' }" @click="mode = 'draw'; $nextTick(() => resizeCanvas())">
+                        <i class="bi bi-pen"></i> Tanda Tangan di Layar (Direkomendasikan)
+                    </button>
+                    <button type="button" class="siom-sign-tab-btn" :class="{ 'is-active': mode === 'upload' }" @click="mode = 'upload'">
+                        <i class="bi bi-cloud-arrow-up"></i> Unggah Berkas Gambar
+                    </button>
+                </div>
+
+                <div class="siom-sign-layout">
+                    <!-- Area Tanda Tangan / Form -->
+                    <div>
+                        <!-- Mode Draw: Canvas Pad -->
+                        <div x-show="mode === 'draw'" style="display: none;" x-transition>
+                            <div class="siom-canvas-wrapper">
+                                <div class="siom-canvas-guide">
+                                    <span>Garis panduan tanda tangan</span>
+                                    <span>Tinta Hitam Pekat</span>
+                                </div>
+                                <canvas
+                                    x-ref="canvas"
+                                    class="siom-sign-canvas"
+                                    @mousedown="startDrawing($event)"
+                                    @mousemove="draw($event)"
+                                    @mouseup="stopDrawing()"
+                                    @mouseleave="stopDrawing()"
+                                    @touchstart="startDrawing($event)"
+                                    @touchmove="draw($event)"
+                                    @touchend="stopDrawing()"
+                                    @touchcancel="stopDrawing()"
+                                ></canvas>
+                            </div>
+
+                            @error('signatureDrawn') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+
+                            <div class="siom-canvas-toolbar">
+                                <div style="display: flex; gap: .5rem;">
+                                    <button type="button" class="btn" style="min-height: 2.2rem; font-size: .8rem; padding: .3rem .7rem;" @click="clear()" :disabled="!hasStrokes">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Bersihkan
+                                    </button>
+                                    <button type="button" class="btn" style="min-height: 2.2rem; font-size: .8rem; padding: .3rem .7rem;" @click="undo()" :disabled="!hasStrokes">
+                                        <i class="bi bi-arrow-left me-1"></i> Undo
+                                    </button>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-primary" @click="saveSignature()" :disabled="!hasStrokes || saving" wire:loading.attr="disabled">
+                                        <span x-show="!saving"><i class="bi bi-check-lg me-1"></i> Simpan Tanda Tangan Digital</span>
+                                        <span x-show="saving" style="display: none;"><i class="bi bi-hourglass-split me-1"></i> Menyimpan…</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mode Upload: File Input -->
+                        <div x-show="mode === 'upload'" style="display: none;" x-transition>
+                            <form wire:submit="uploadSignature" class="siom-sign-form">
+                                <div class="siom-field">
+                                    <label for="signatureFile">Pilih gambar tanda tangan (PNG/JPG, maks 2 MB)</label>
+                                    <input id="signatureFile" type="file" class="form-control" wire:model="signatureFile" accept=".png,.jpg,.jpeg">
+                                    @error('signatureFile') <small class="text-danger">{{ $message }}</small> @enderror
+                                    <span wire:loading wire:target="signatureFile" class="text-muted">Mengunggah…</span>
+                                </div>
+                                <button class="btn btn-primary" type="submit" wire:loading.attr="disabled" wire:target="uploadSignature,signatureFile">Unggah</button>
+                            </form>
+                        </div>
                     </div>
-                    <button class="btn btn-primary" type="submit" wire:loading.attr="disabled" wire:target="uploadSignature,signatureFile">Simpan Tanda Tangan</button>
-                </form>
+
+                    <!-- Area Preview Tanda Tangan Aktif -->
+                    <div>
+                        <div class="siom-preview-card">
+                            <h3 class="h6 mb-2" style="font-weight: 700;">Pratinjau Tanda Tangan Aktif</h3>
+                            @if ($savedSignaturePreview)
+                                <div class="siom-checkerboard mb-2">
+                                    <img src="{{ $savedSignaturePreview }}" alt="Tanda Tangan {{ $user->name }}">
+                                </div>
+                                <small class="text-muted d-block">Latar belakang transparan. Dokumen akan menggunakan tanda tangan ini secara seragam.</small>
+                            @else
+                                <div class="siom-checkerboard mb-2" style="color: #94a3b8; font-size: .85rem;">
+                                    Belum ada tanda tangan aktif.
+                                </div>
+                                <small class="text-muted d-block">Silakan tanda tangani di canvas layar atau unggah gambar di samping.</small>
+                            @endif
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -375,4 +554,174 @@
             </div>
         </section>
     @endif
+
+    <script>
+        function signatureCanvas() {
+            return {
+                mode: 'draw',
+                penColor: '#0f172a',
+                strokes: [],
+                currentStroke: [],
+                isDrawing: false,
+                canvas: null,
+                ctx: null,
+                hasStrokes: false,
+                saving: false,
+
+                initCanvas() {
+                    this.$nextTick(() => {
+                        this.canvas = this.$refs.canvas;
+                        if (!this.canvas) return;
+                        this.ctx = this.canvas.getContext('2d');
+                        this.resizeCanvas();
+                        window.addEventListener('resize', () => this.resizeCanvas());
+                    });
+                },
+
+                resizeCanvas() {
+                    if (!this.canvas) return;
+                    const rect = this.canvas.parentElement.getBoundingClientRect();
+                    const dpr = window.devicePixelRatio || 1;
+                    const displayWidth = Math.max(300, Math.floor(rect.width));
+                    const displayHeight = 200;
+
+                    if (this.canvas.width !== displayWidth * dpr || this.canvas.height !== displayHeight * dpr) {
+                        this.canvas.width = displayWidth * dpr;
+                        this.canvas.height = displayHeight * dpr;
+                        this.ctx.scale(dpr, dpr);
+                        this.redraw();
+                    }
+                },
+
+                startDrawing(e) {
+                    e.preventDefault();
+                    this.isDrawing = true;
+                    const pt = this.getPoint(e);
+                    this.currentStroke = [pt];
+                    this.drawDot(pt);
+                },
+
+                draw(e) {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    const pt = this.getPoint(e);
+                    this.currentStroke.push(pt);
+
+                    const pts = this.currentStroke;
+                    if (pts.length > 1) {
+                        this.ctx.beginPath();
+                        this.ctx.lineCap = 'round';
+                        this.ctx.lineJoin = 'round';
+                        this.ctx.strokeStyle = this.penColor;
+                        this.ctx.lineWidth = 2.8;
+
+                        const p1 = pts[pts.length - 2];
+                        const p2 = pts[pts.length - 1];
+                        this.ctx.moveTo(p1.x, p1.y);
+                        this.ctx.lineTo(p2.x, p2.y);
+                        this.ctx.stroke();
+                    }
+                    this.hasStrokes = true;
+                },
+
+                stopDrawing() {
+                    if (!this.isDrawing) return;
+                    this.isDrawing = false;
+                    if (this.currentStroke.length > 0) {
+                        this.strokes.push({
+                            color: this.penColor,
+                            points: [...this.currentStroke]
+                        });
+                        this.currentStroke = [];
+                        this.hasStrokes = this.strokes.length > 0;
+                    }
+                },
+
+                drawDot(pt) {
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = this.penColor;
+                    this.ctx.arc(pt.x, pt.y, 1.4, 0, Math.PI * 2);
+                    this.ctx.fill();
+                },
+
+                getPoint(e) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+                    return {
+                        x: clientX - rect.left,
+                        y: clientY - rect.top
+                    };
+                },
+
+                redraw() {
+                    if (!this.ctx || !this.canvas) return;
+                    const dpr = window.devicePixelRatio || 1;
+                    this.ctx.clearRect(0, 0, this.canvas.width / dpr, this.canvas.height / dpr);
+
+                    for (const stroke of this.strokes) {
+                        if (stroke.points.length === 1) {
+                            this.ctx.beginPath();
+                            this.ctx.fillStyle = stroke.color;
+                            this.ctx.arc(stroke.points[0].x, stroke.points[0].y, 1.4, 0, Math.PI * 2);
+                            this.ctx.fill();
+                            continue;
+                        }
+                        this.ctx.beginPath();
+                        this.ctx.lineCap = 'round';
+                        this.ctx.lineJoin = 'round';
+                        this.ctx.strokeStyle = stroke.color;
+                        this.ctx.lineWidth = 2.8;
+                        this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                        for (let i = 1; i < stroke.points.length; i++) {
+                            this.ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                        }
+                        this.ctx.stroke();
+                    }
+                    this.hasStrokes = this.strokes.length > 0;
+                },
+
+                clear() {
+                    this.strokes = [];
+                    this.currentStroke = [];
+                    this.hasStrokes = false;
+                    this.redraw();
+                },
+
+                undo() {
+                    if (this.strokes.length > 0) {
+                        this.strokes.pop();
+                        this.redraw();
+                    }
+                },
+
+                saveSignature() {
+                    if (!this.hasStrokes) return;
+                    this.saving = true;
+                    const dataUrl = this.exportTrimmedDataUrl();
+                    this.$wire.saveDrawnSignature(dataUrl).finally(() => {
+                        this.saving = false;
+                    });
+                },
+
+                exportTrimmedDataUrl() {
+                    const offCanvas = document.createElement('canvas');
+                    offCanvas.width = 500;
+                    offCanvas.height = 200;
+                    const offCtx = offCanvas.getContext('2d');
+
+                    const dpr = window.devicePixelRatio || 1;
+                    const w = this.canvas.width / dpr;
+                    const h = this.canvas.height / dpr;
+
+                    const scale = Math.min(480 / w, 180 / h);
+                    const offsetX = (500 - w * scale) / 2;
+                    const offsetY = (200 - h * scale) / 2;
+
+                    offCtx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, offsetX, offsetY, w * scale, h * scale);
+                    return offCanvas.toDataURL('image/png');
+                }
+            };
+        }
+    </script>
 </div>

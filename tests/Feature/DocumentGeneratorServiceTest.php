@@ -5,6 +5,8 @@ use App\Livewire\Sekretaris\Pengajuan\Index as SubmissionIndex;
 use App\Models\ApprovalStep;
 use App\Models\Document;
 use App\Models\DocumentTemplate;
+use App\Models\Lpj;
+use App\Models\LpjApprovalStep;
 use App\Models\OrganizationMember;
 use App\Models\Ormawa;
 use App\Models\Period;
@@ -315,6 +317,7 @@ it('saves an uploaded DOCX proposal with the required tracking metadata', functi
         ->test(SubmissionCreate::class)
         ->set('sourceType', 'upload')
         ->set('activity_name', 'Seminar Unggahan')
+        ->set('event_date', now()->addDays(35)->format('Y-m-d'))
         ->set('uploadedTotalAmount', '25000')
         ->set('proposalUpload', UploadedFile::fake()->createWithContent('proposal.docx', $content))
         ->call('saveDraft')
@@ -374,4 +377,82 @@ it('does not allow a secretary to generate a document for another ormawa', funct
         ->test(SubmissionIndex::class)
         ->call('downloadProposal', $otherSubmission->id))
         ->toThrow(ModelNotFoundException::class);
+});
+
+it('enforces the 30-day deadline rule when uploading a proposal', function () {
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+    $secretaryRole = Role::create(['name' => 'sekretaris_ormawa', 'display_name' => 'Sekretaris ORMAWA']);
+    $fixture['submitter']->update(['role_id' => $secretaryRole->id]);
+
+    Livewire::actingAs($fixture['submitter'])
+        ->test(SubmissionCreate::class)
+        ->set('sourceType', 'upload')
+        ->set('activity_name', 'Kegiatan Dadakan')
+        ->set('event_date', now()->addDays(5)->format('Y-m-d'))
+        ->set('uploadedTotalAmount', '5000000')
+        ->set('proposalUpload', UploadedFile::fake()->create('proposal.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'))
+        ->call('saveDraft')
+        ->assertHasErrors(['event_date']);
+});
+
+it('generates a signed LPJ with all approver signatures and embeds them properly', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/lpj.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    foreach (['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $roleName) {
+        $section->addText('${signature_'.$roleName.'}');
+    }
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template LPJ Test',
+        'type' => 'lpj',
+        'file_name' => 'lpj.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    $lpj = Lpj::create([
+        'submission_id' => $fixture['submission']->id,
+        'ormawa_id' => $fixture['submission']->ormawa_id,
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'title' => 'LPJ Seminar Teknologi',
+        'status' => 'approved',
+    ]);
+
+    foreach (['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $sequence => $roleName) {
+        $role = Role::create(['name' => $roleName, 'display_name' => $roleName]);
+        $approver = User::factory()->create(['role_id' => $role->id]);
+        $signaturePath = UploadedFile::fake()->image($roleName.'.png')->store('signatures', 'local');
+        LpjApprovalStep::create([
+            'lpj_id' => $lpj->id,
+            'role_id' => $role->id,
+            'sequence' => $sequence + 1,
+            'status' => 'approved',
+            'approved_by' => $approver->id,
+            'approved_at' => now(),
+            'signature_path' => $signaturePath,
+        ]);
+    }
+
+    $generator = app(DocumentGeneratorService::class);
+    $signedPath = $generator->generateSignedLpj($lpj);
+
+    expect(Storage::disk('local')->exists($signedPath))->toBeTrue();
+    $archive = new ZipArchive;
+    expect($archive->open(Storage::disk('local')->path($signedPath)))->toBeTrue();
+    $documentXml = $archive->getFromName('word/document.xml');
+    $archive->close();
+
+    expect($documentXml)->not->toContain('${signature_');
 });

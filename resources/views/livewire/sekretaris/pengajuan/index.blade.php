@@ -133,9 +133,21 @@
                                             @endif
                                         @endif
                                         @if (! in_array($submission->status, ['draft'], true))
-                                            <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled">
-                                                Unduh Proposal
-                                            </button>
+                                            @php
+                                                $isBemOrDpm = $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm());
+                                            @endphp
+                                            @if ($isBemOrDpm)
+                                                <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled" title="Unduh Format Proposal BEM">
+                                                    Unduh Proposal
+                                                </button>
+                                                <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadNotaDinas({{ $submission->id }})" wire:loading.attr="disabled" title="Unduh Format Nota Dinas BEM">
+                                                    Unduh Nota Dinas
+                                                </button>
+                                            @else
+                                                <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled" title="Unduh Format Nota Dinas & Proposal Ormawa">
+                                                    Unduh Proposal & Nota Dinas
+                                                </button>
+                                            @endif
                                         @endif
                                         @if ($submission->status === 'approved')
                                             <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadSignedProposal({{ $submission->id }})" wire:loading.attr="disabled">
@@ -194,7 +206,15 @@
                                 @endif
                             @endif
                             @if (! in_array($status, ['draft'], true))
-                                <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled">Unduh Proposal</button>
+                                @php
+                                    $isBemOrDpm = $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm());
+                                @endphp
+                                @if ($isBemOrDpm)
+                                    <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled">Unduh Proposal</button>
+                                    <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadNotaDinas({{ $submission->id }})" wire:loading.attr="disabled">Unduh Nota Dinas</button>
+                                @else
+                                    <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled">Unduh Proposal & Nota Dinas</button>
+                                @endif
                             @endif
                             @if ($status === 'approved')
                                 <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadSignedProposal({{ $submission->id }})" wire:loading.attr="disabled">Bertanda tangan</button>

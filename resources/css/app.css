@@ -26,35 +26,487 @@
 
 .siom-guest-body {
     min-height: 100vh;
-    background: #eff6ff;
+    background-color: #eff6ff;
+    background-image: radial-gradient(#bfdbfe 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
     color: #0f172a;
     font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0;
+    padding: 0;
 }
 
-.siom-guest-layout {
-    display: flex;
+.siom-guest-container {
     min-height: 100vh;
-    align-items: center;
-    justify-content: center;
+    display: flex;
     flex-direction: column;
-    gap: 1.2rem;
-    padding: 2rem 1rem;
-    background:
-        radial-gradient(circle at 50% 8%, rgba(56, 189, 248, .2), transparent 24rem),
-        #eff6ff;
+    justify-content: space-between;
+}
+
+.siom-guest-header {
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
 }
 
 .siom-guest-brand {
     text-decoration: none;
 }
 
-.siom-guest-card {
-    width: min(100%, 480px);
-    padding: clamp(1.25rem, 5vw, 2rem);
+.siom-guest-btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #ffffff;
+    color: #0f172a;
+    font-family: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.5rem 1.15rem;
+    border-radius: 9999px;
+    border: 2px solid #0f172a;
+    box-shadow: 3px 3px 0px #0f172a;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.siom-guest-btn-back:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0px #0f172a;
+    background: #e0f2fe;
+    color: #0f172a;
+}
+
+.siom-guest-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem 2.5rem;
+}
+
+/* THE TWO-COLUMN LOGIN PORTAL CARD */
+.siom-login-card-wrapper {
+    width: 100%;
+    max-width: 1060px;
     border: 2.5px solid #0f172a;
-    border-radius: 20px;
-    background: #fff;
-    box-shadow: 6px 6px 0 #0f172a;
+    border-radius: 28px;
+    background: #ffffff;
+    box-shadow: 8px 8px 0px #0f172a;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    margin: 0 auto;
+}
+
+/* LEFT PANEL (BRAND / HERO) */
+.siom-login-brand-panel {
+    background: #0f1e36;
+    color: #ffffff;
+    padding: 2.75rem 2.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    border-right: 2.5px solid #0f172a;
+}
+
+.siom-login-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(37, 99, 235, 0.35);
+    border: 1.5px solid #38bdf8;
+    color: #38bdf8;
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+    align-self: flex-start;
+}
+
+.siom-login-brand-title {
+    font-family: 'Fredoka', sans-serif;
+    font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+    font-weight: 900;
+    line-height: 1.15;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.siom-login-brand-title span {
+    color: #f59e0b;
+}
+
+.siom-login-brand-sub {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin-bottom: 2rem;
+}
+
+.siom-login-features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin-bottom: 2rem;
+}
+
+.siom-login-feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    transition: transform 0.2s ease;
+}
+
+.siom-login-feature-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(3px);
+}
+
+.siom-login-feature-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    background: #1e3a5f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.siom-login-feature-text h4 {
+    margin: 0;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.siom-login-feature-text p {
+    margin: 0.15rem 0 0;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    line-height: 1.35;
+}
+
+.siom-login-brand-footer {
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+    padding-top: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.siom-login-brand-footer i {
+    font-size: 1.4rem;
+    color: #38bdf8;
+}
+
+.siom-login-brand-footer-text {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* RIGHT PANEL (FORM) */
+.siom-login-form-panel {
+    background: #ffffff;
+    padding: 2.75rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.siom-login-form-header {
+    margin-bottom: 1.35rem;
+}
+
+.siom-login-form-tag {
+    display: inline-block;
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1.5px solid #2563eb;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.siom-login-form-title {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.85rem;
+    font-weight: 900;
+    color: #0f172a;
+    margin: 0 0 0.35rem 0;
+    line-height: 1.2;
+}
+
+.siom-login-form-sub {
+    font-size: 0.86rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* QUICK DEMO CHIPS (1-CLICK FILL) */
+.siom-demo-section {
+    background: #f8fafc;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.35rem;
+}
+
+.siom-demo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.siom-demo-title {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.siom-demo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.siom-demo-chip {
+    background: #ffffff;
+    border: 1.5px solid #0f172a;
+    border-radius: 8px;
+    padding: 0.3rem 0.65rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #0f172a;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #0f172a;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.siom-demo-chip:hover {
+    background: #e0f2fe;
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px #0f172a;
+}
+
+.siom-demo-chip.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #0f172a;
+}
+
+/* FORM FIELDS */
+.siom-form-group {
+    margin-bottom: 1.15rem;
+}
+
+.siom-form-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.4rem;
+}
+
+.siom-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.siom-input-icon {
+    position: absolute;
+    left: 1rem;
+    font-size: 1rem;
+    color: #64748b;
+    pointer-events: none;
+    transition: color 0.15s ease;
+}
+
+.siom-form-control {
+    width: 100%;
+    height: 48px;
+    padding: 0.5rem 2.85rem 0.5rem 2.75rem;
+    border: 2px solid #0f172a;
+    border-radius: 12px;
+    background: #f8fafc;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #0f172a;
+    box-shadow: 2px 2px 0px rgba(15, 23, 42, 0.15);
+    transition: all 0.2s ease;
+}
+
+.siom-form-control:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.siom-input-wrap:focus-within .siom-input-icon {
+    color: #2563eb;
+}
+
+.siom-pass-toggle {
+    position: absolute;
+    right: 0.75rem;
+    background: transparent;
+    border: none;
+    padding: 0.35rem;
+    font-size: 1.1rem;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.siom-pass-toggle:hover {
+    color: #0f172a;
+}
+
+.siom-row-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 1.15rem 0 1.35rem;
+    font-size: 0.82rem;
+}
+
+.siom-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: #475569;
+    user-select: none;
+}
+
+.siom-checkbox-input {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #0f172a;
+    border-radius: 5px;
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
+.siom-link-forgot {
+    color: #2563eb;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.siom-link-forgot:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.siom-btn-submit {
+    width: 100%;
+    height: 52px;
+    border: 2.5px solid #0f172a;
+    border-radius: 9999px;
+    background: #2563eb;
+    color: #ffffff;
+    font-family: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 4px 4px 0px #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.siom-btn-submit:hover {
+    background: #1d4ed8;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #0f172a;
+}
+
+.siom-btn-submit:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #0f172a;
+}
+
+.siom-btn-submit:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.siom-login-help-note {
+    margin-top: 1.35rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.siom-login-help-note a {
+    color: #2563eb;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.siom-login-help-note a:hover {
+    text-decoration: underline;
+}
+
+/* SINGLE AUTH CARD (For forgot password, register, etc.) */
+.siom-guest-card {
+    width: 100%;
+    max-width: 520px;
+    padding: clamp(1.75rem, 5vw, 2.5rem);
+    border: 2.5px solid #0f172a;
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 8px 8px 0px #0f172a;
+    margin: 1.5rem auto;
 }
 
 .siom-guest-card-heading {
@@ -62,17 +514,17 @@
 }
 
 .siom-guest-card-heading h1 {
-    margin: 0 0 .3rem;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.85rem;
+    font-weight: 900;
     color: #0f172a;
-    font-family: Fredoka, 'Plus Jakarta Sans', sans-serif;
-    font-size: 1.65rem;
+    margin: 0 0 0.35rem;
 }
 
-.siom-guest-card-heading p,
-.siom-guest-footer {
+.siom-guest-card-heading p {
+    font-size: 0.86rem;
+    color: #64748b;
     margin: 0;
-    color: #475569;
-    font-size: .84rem;
 }
 
 .siom-guest-card label {
@@ -106,6 +558,54 @@
 
 .siom-guest-card button:hover {
     background: #1d4ed8;
+}
+
+/* GUEST FOOTER BAR */
+.siom-guest-footer-bar {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.25rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 600;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.siom-guest-footer-bar strong {
+    color: #f59e0b;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .siom-login-card-wrapper {
+        grid-template-columns: 1fr;
+        max-width: 520px;
+        margin: 1rem auto;
+    }
+    .siom-login-brand-panel {
+        border-right: none;
+        border-bottom: 2.5px solid #0f172a;
+        padding: 2rem 1.5rem;
+    }
+    .siom-login-brand-sub,
+    .siom-login-features {
+        margin-bottom: 1.25rem;
+    }
+    .siom-login-form-panel {
+        padding: 2rem 1.5rem;
+    }
+    .siom-guest-header,
+    .siom-guest-footer-bar {
+        padding: 1rem 1.25rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
 }
 
 .siom-app-main {

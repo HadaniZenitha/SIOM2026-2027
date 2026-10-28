@@ -22,5 +22,20 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Livewire::component('dashboard', Index::class);
+
+        // Pass Windows user temp directories to artisan serve child PHP process
+        if (class_exists(\Illuminate\Foundation\Console\ServeCommand::class)) {
+            \Illuminate\Foundation\Console\ServeCommand::$passthroughVariables = array_merge(
+                \Illuminate\Foundation\Console\ServeCommand::$passthroughVariables,
+                ['TEMP', 'TMP', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA']
+            );
+        }
+
+        $tempDir = storage_path('app/temp');
+        if (! is_dir($tempDir)) {
+            @mkdir($tempDir, 0777, true);
+        }
+        \PhpOffice\PhpWord\Settings::setTempDir($tempDir);
+        \PhpOffice\PhpWord\Settings::setOutputEscapingEnabled(true);
     }
 }

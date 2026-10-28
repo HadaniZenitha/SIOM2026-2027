@@ -17,15 +17,17 @@ class Index extends Component
 
     public $name = '';
     public $type = 'proposal';
+    public $ormawa_category = '';
     public $period_id = '';
     public $file;
     public $showForm = false;
 
     protected $rules = [
-        'name' => 'required|string|max:255',
-        'type' => 'required|in:proposal,lpj',
-        'period_id' => 'nullable|exists:periods,id',
-        'file' => 'required|file|mimes:docx|max:10240',
+        'name'            => 'required|string|max:255',
+        'type'            => 'required|in:proposal,lpj',
+        'ormawa_category' => 'nullable|in:hima,bem',
+        'period_id'       => 'nullable|exists:periods,id',
+        'file'            => 'required|file|mimes:docx|max:10240',
     ];
 
     protected $messages = [
@@ -43,17 +45,18 @@ class Index extends Component
         $path = $this->file->store('document-templates', 'public');
 
         DocumentTemplate::create([
-            'period_id' => $this->period_id ?: null,
-            'created_by' => Auth::id(),
-            'name' => $this->name,
-            'type' => $this->type,
-            'file_path' => $path,
-            'file_name' => $this->file->getClientOriginalName(),
-            'version' => 1,
-            'is_active' => true,
+            'period_id'       => $this->period_id ?: null,
+            'created_by'      => Auth::id(),
+            'name'            => $this->name,
+            'type'            => $this->type,
+            'ormawa_category' => $this->ormawa_category ?: null,
+            'file_path'       => $path,
+            'file_name'       => $this->file->getClientOriginalName(),
+            'version'         => 1,
+            'is_active'       => true,
         ]);
 
-        $this->reset(['name', 'period_id', 'file', 'showForm']);
+        $this->reset(['name', 'period_id', 'ormawa_category', 'file', 'showForm']);
         $this->type = 'proposal';
 
         session()->flash('success', 'Template dokumen berhasil disimpan.');
@@ -67,6 +70,15 @@ class Index extends Component
         ]);
         
         session()->flash('success', 'Status template berhasil diperbarui.');
+    }
+
+    public function updateCategory($id, $category)
+    {
+        $template = DocumentTemplate::findOrFail($id);
+        $category = in_array($category, ['hima', 'bem'], true) ? $category : null;
+        $template->update(['ormawa_category' => $category]);
+
+        session()->flash('success', 'Kategori ormawa template berhasil diperbarui.');
     }
 
     public function download($id)

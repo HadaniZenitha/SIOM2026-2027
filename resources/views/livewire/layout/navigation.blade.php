@@ -9,7 +9,7 @@ new class extends Component
     {
         $logout();
 
-        $this->redirect('/', navigate: true);
+        $this->redirect('/', navigate: false);
     }
 }; ?>
 

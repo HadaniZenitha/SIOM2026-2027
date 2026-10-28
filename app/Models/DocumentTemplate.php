@@ -14,6 +14,7 @@ class DocumentTemplate extends Model
         'created_by',
         'name',
         'type',
+        'ormawa_category',
         'file_path',
         'file_name',
         'version',

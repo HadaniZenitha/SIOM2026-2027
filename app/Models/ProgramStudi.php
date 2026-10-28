@@ -29,4 +29,9 @@ class ProgramStudi extends Model
     {
         return $this->hasMany(OrganizationMember::class);
     }
+
+    public function ormawas()
+    {
+        return $this->hasMany(Ormawa::class);
+    }
 }
