@@ -147,8 +147,8 @@ class DocumentGeneratorService
             if (collect($variables)->contains(fn (string $variable): bool => $variable === $placeholder || str_starts_with($variable, $placeholder.':'))) {
                 $processor->setImageValue($placeholder, [
                     'path'   => $imagePath,
-                    'width'  => 150,
-                    'height' => 60,
+                    'width'  => 195,
+                    'height' => 85,
                     'ratio'  => true,
                 ]);
             }
@@ -168,8 +168,8 @@ class DocumentGeneratorService
                 if (in_array($userPlaceholder, $variables, true) && ! isset($signatures[$userPlaceholder])) {
                     $processor->setImageValue($userPlaceholder, [
                         'path'   => $submitterSigPath,
-                        'width'  => 150,
-                        'height' => 60,
+                        'width'  => 195,
+                        'height' => 85,
                         'ratio'  => true,
                     ]);
                 }
@@ -185,16 +185,16 @@ class DocumentGeneratorService
                 if ($variable === 'signature_presma' && isset($signatures['signature_pembina_ormawa'])) {
                     $processor->setImageValue('signature_presma', [
                         'path'   => $signatures['signature_pembina_ormawa'],
-                        'width'  => 150,
-                        'height' => 60,
+                        'width'  => 195,
+                        'height' => 85,
                         'ratio'  => true,
                     ]);
                 }
                 if ($variable === 'signature_ketua_pelaksana' && isset($signatures['signature_kaprodi'])) {
                     $processor->setImageValue('signature_ketua_pelaksana', [
                         'path'   => $signatures['signature_kaprodi'],
-                        'width'  => 150,
-                        'height' => 60,
+                        'width'  => 195,
+                        'height' => 85,
                         'ratio'  => true,
                     ]);
                 }

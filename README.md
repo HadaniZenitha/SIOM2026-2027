@@ -265,3 +265,71 @@ SIOM2026-2027/
 Dikembangkan oleh **Tim RnD UPTI & Biro Kemahasiswaan & Alumni (BKA)** — **ITSK RS dr. Soepraoen Malang** untuk memajukan tata kelola organisasi mahasiswa yang transparan, terukur, dan akuntabel.
 
 Proyek ini dilisensikan di bawah [MIT License](LICENSE).
+
+## 🔑 Akun Demo & Pengujian
+
+Sistem telah dilengkapi data awal (*demo seeders*) dengan password default: `password`
+
+| Role / Entitas | Email | Password | Keterangan |
+| :--- | :--- | :--- | :--- |
+| **Superadmin** | `admin@siom.test` | `password` | Master Data & Template Administrasi |
+| **Sekretaris HIMA** | `sekretaris@siom.test` | `password` | HIMA S1 Informatika (HIMATIF) |
+| **Sekretaris UKM** | `sekretaris.ukm@siom.test` | `password` | UKM Taekwondo |
+| **Sekretaris DPM** | `sekretaris.dpm@siom.test` | `password` | Dewan Perwakilan Mahasiswa |
+| **Pembina Ormawa** | `pembina@siom.test` | `password` | Dosen Pembina (Tahap 1 Approval) |
+| **Kaprodi IF** | `kaprodi@siom.test` | `password` | Kaprodi Informatika (Tahap 2 Approval HIMA) |
+| **Kabag BKA** | `kabag@siom.test` | `password` | Biro Kemahasiswaan & Alumni |
+| **Wakil Rektor III**| `warek@siom.test` | `password` | Persetujuan Akhir (ACC Final) |
+
+> 💡 **Tip:** Di halaman login (`/login`), Anda dapat menggunakan fitur **1-Klik Demo Login** untuk beralih peran dengan cepat saat pengujian.
+
+---
+
+## 🧪 Pengujian Otomatis (Testing)
+
+Proyek ini dilengkapi dengan unit dan feature tests menggunakan **Pest PHP** untuk memastikan keandalan alur persetujuan, kalkulasi anggaran, dan penjanaan dokumen:
+
+```bash
+# Menjalankan seluruh test suite
+php artisan test
+
+# Menjalankan pengujian generator dokumen
+php artisan test --filter=DocumentGeneratorServiceTest
+
+# Menjalankan pengujian alur persetujuan
+php artisan test --filter=ApprovalFlowTest
+```
+
+---
+
+## 📂 Struktur Direktori Utama
+
+```text
+SIOM2026-2027/
+├── app/
+│   ├── Http/Middleware/      # Middleware autentikasi & riwayat peramban
+│   ├── Livewire/             # Komponen reaktif Livewire (Admin, Sekretaris, Approval, Auth)
+│   ├── Models/               # Model Eloquent (Submission, Ormawa, DocumentTemplate, dll)
+│   └── Services/             # Layanan inti (DocumentGeneratorService, ApprovalService, CashService)
+├── database/
+│   ├── migrations/           # Skema tabel relasional
+│   └── seeders/              # Data inisialisasi master, template dokumen, dan user demo
+├── resources/
+│   ├── css/                  # Custom CSS & Tailwind styles
+│   └── views/
+│       ├── layouts/          # Layout template (App & Guest)
+│       └── livewire/         # Template Blade untuk komponen Livewire
+├── storage/app/public/
+│   └── document-templates/   # Master berkas .docx resmi yang diisi otomatis
+└── tests/
+    └── Feature/              # Pengujian otomatis skenario aplikasi
+```
+
+---
+
+## 📄 Kontributor & Lisensi
+
+Dikembangkan oleh **SIOM** — **ITSK RS dr. Soepraoen Malang** untuk memajukan tata kelola organisasi mahasiswa yang transparan, terukur, dan akuntabel.
+
+Proyek ini dilisensikan di bawah [MIT License](LICENSE).
+
