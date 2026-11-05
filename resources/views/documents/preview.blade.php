@@ -88,9 +88,9 @@
                 <header class="siom-kop-header">
                     <h2>INSTITUT TEKNOLOGI SAINS DAN KESEHATAN RS dr. SOEPRAOEN</h2>
                     @if ($submission)
-                        <h3>{{ $submission->ormawa?->name ?? 'ORGANISASI MAHASISWA' }}</h3>
+                        <h3>{{ mb_strtoupper($submission->ormawa?->name ?? 'ORGANISASI MAHASISWA') }}</h3>
                     @elseif ($lpj)
-                        <h3>{{ $lpj->ormawa?->name ?? 'ORGANISASI MAHASISWA' }}</h3>
+                        <h3>{{ mb_strtoupper($lpj->ormawa?->name ?? 'ORGANISASI MAHASISWA') }}</h3>
                     @endif
                     <p class="siom-kop-address">Jl. Sudanco Supriadi No. 22 Sukun, Kota Malang, Jawa Timur 65147</p>
                     <hr class="siom-kop-divider">
