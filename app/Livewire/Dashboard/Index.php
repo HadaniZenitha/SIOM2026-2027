@@ -5,11 +5,14 @@ namespace App\Livewire\Dashboard;
 use App\Models\ApprovalStep;
 use App\Models\Lpj;
 use App\Models\LpjApprovalStep;
+use App\Models\LpjItem;
+use App\Models\OrganizationBudget;
 use App\Models\Period;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\DocumentGeneratorService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -188,6 +191,40 @@ class Index extends Component
         $trackedSubmissions = collect();
         $trackedLpjs = collect();
         $isApprover = $user->hasAnyRole(['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek']);
+        $activePeriod = Period::query()
+            ->where('status', 'active')
+            ->orderByDesc('start_date')
+            ->first();
+        $budget = null;
+        $budgetActivities = collect();
+        $realizedAmount = 0.0;
+
+        if (
+            $user->hasAnyRole(['sekretaris_ormawa', 'pembina_ormawa'])
+            && $user->ormawa_id
+            && $activePeriod
+        ) {
+            $budget = OrganizationBudget::query()
+                ->where('ormawa_id', $user->ormawa_id)
+                ->where('period_id', $activePeriod->id)
+                ->first();
+
+            $budgetActivities = Submission::query()
+                ->with(['lpj.items'])
+                ->where('period_id', $activePeriod->id)
+                ->where('ormawa_id', $user->ormawa_id)
+                ->where('status', 'approved')
+                ->latest('activity_date')
+                ->limit(50)
+                ->get();
+
+            $realizedAmount = (float) LpjItem::query()
+                ->whereHas('lpj', fn (Builder $query) => $query
+                    ->where('period_id', $activePeriod->id)
+                    ->where('ormawa_id', $user->ormawa_id)
+                    ->where('status', 'approved'))
+                ->sum('total_price');
+        }
 
         if ($isApprover) {
             $approvedQuery = Submission::query()
@@ -253,15 +290,15 @@ class Index extends Component
 
         return view('livewire.dashboard.index', [
             'user' => $user,
-            'activePeriod' => Period::query()
-                ->where('status', 'active')
-                ->orderByDesc('start_date')
-                ->first(),
+            'activePeriod' => $activePeriod,
             'approvedProposals' => $approvedProposals,
             'myDecisions' => $myDecisions,
             'approvedLpjs' => $approvedLpjs,
             'trackedSubmissions' => $trackedSubmissions,
             'trackedLpjs' => $trackedLpjs,
+            'budget' => $budget,
+            'budgetActivities' => $budgetActivities,
+            'realizedAmount' => $realizedAmount,
             'isApprover' => $isApprover,
             'savedSignaturePreview' => $savedSignaturePreview,
         ]);

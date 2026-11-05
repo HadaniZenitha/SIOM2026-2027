@@ -165,6 +165,26 @@
         .siom-dashboard .text-danger { color: #dc2626; }
         .siom-dashboard .text-muted { color: #475569; }
         .siom-dashboard .siom-track-list { display: grid; gap: .75rem; }
+        .siom-dashboard .siom-budget-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: .75rem;
+        }
+        .siom-dashboard .siom-budget-stat {
+            padding: .85rem 1rem;
+            border: 1.5px solid #0f172a;
+            border-radius: 12px;
+            background: #f8fbff;
+        }
+        .siom-dashboard .siom-budget-stat span,
+        .siom-dashboard .siom-budget-stat strong { display: block; }
+        .siom-dashboard .siom-budget-stat span { color: #475569; font-size: .8rem; font-weight: 700; }
+        .siom-dashboard .siom-budget-stat strong { margin-top: .3rem; font-size: 1.05rem; }
+        .siom-dashboard .siom-budget-table-wrap { overflow-x: auto; margin-top: 1rem; }
+        .siom-dashboard .siom-budget-table { width: 100%; border-collapse: collapse; }
+        .siom-dashboard .siom-budget-table th,
+        .siom-dashboard .siom-budget-table td { padding: .65rem; border-bottom: 1px solid #cbd5e1; text-align: left; }
+        .siom-dashboard .siom-budget-table th { font-size: .78rem; }
         .siom-dashboard .siom-track {
             display: flex;
             flex-direction: column;
@@ -247,8 +267,81 @@
         @elseif ($user->hasAnyRole(['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek']))
             <a class="siom-dashboard-shortcut" href="{{ route('approval.index') }}" wire:navigate><i class="bi bi-check2-square"></i><strong>Persetujuan Pengajuan</strong><span>Tinjau pengajuan yang menunggu keputusan Anda.</span></a>
         @endif
-        <a class="siom-dashboard-shortcut" href="{{ route('laporan') }}" wire:navigate><i class="bi bi-bar-chart"></i><strong>Laporan</strong><span>Akses ringkasan dan laporan kegiatan.</span></a>
+        <a class="siom-dashboard-shortcut" href="{{ route('laporan') }}" wire:navigate><i class="bi bi-bar-chart"></i><strong>Laporan</strong><span>{{ $user->hasRole('kaprodi') ? 'Pantau aktivitas proposal dan LPJ HIMA program studi Anda.' : ($user->hasRole('pembina_ormawa') ? 'Lihat ringkasan pagu dan LPJ ORMAWA.' : 'Akses ringkasan laporan dan penggunaan pagu.') }}</span></a>
     </div>
+
+    @if ($user->hasAnyRole(['sekretaris_ormawa', 'pembina_ormawa']))
+        <section class="card">
+            <div class="card-body">
+                <div class="siom-panel-head">
+                    <div>
+                        <h2 class="h5">Kondisi Pagu Saat Ini</h2>
+                        <p class="text-muted">{{ $activePeriod?->name ? 'Periode '.$activePeriod->name : 'Belum ada periode aktif.' }} · {{ $user->ormawa?->name ?? 'ORMAWA belum ditentukan' }} · Daftar menampilkan maksimal 50 kegiatan terbaru.</p>
+                    </div>
+                    <a class="btn" href="{{ route('laporan') }}" wire:navigate>Lihat Laporan</a>
+                </div>
+
+                @if ($activePeriod && $user->ormawa_id)
+                    <div class="siom-budget-stats">
+                        <div class="siom-budget-stat">
+                            <span>Total Pagu</span>
+                            <strong>{{ $budget ? 'Rp '.number_format((float) $budget->budget_amount, 0, ',', '.') : 'Belum ditetapkan' }}</strong>
+                        </div>
+                        <div class="siom-budget-stat">
+                            <span>Pagu Terpakai / Dialokasikan</span>
+                            <strong>{{ $budget ? 'Rp '.number_format((float) $budget->allocated_amount, 0, ',', '.') : 'Belum ditetapkan' }}</strong>
+                        </div>
+                        <div class="siom-budget-stat">
+                            <span>Sisa Pagu</span>
+                            <strong>{{ $budget ? 'Rp '.number_format((float) $budget->remaining_amount, 0, ',', '.') : 'Belum ditetapkan' }}</strong>
+                        </div>
+                        <div class="siom-budget-stat">
+                            <span>Realisasi LPJ Disetujui</span>
+                            <strong>Rp {{ number_format($realizedAmount, 0, ',', '.') }}</strong>
+                        </div>
+                    </div>
+
+                    <h3 class="h6 mt-4">Penggunaan Pagu per Kegiatan</h3>
+                    @if ($budgetActivities->isNotEmpty())
+                        <div class="siom-budget-table-wrap">
+                            <table class="siom-budget-table">
+                                <thead>
+                                    <tr>
+                                        <th>Kegiatan</th>
+                                        <th>LPJ</th>
+                                        <th>Dana Disetujui</th>
+                                        <th>Realisasi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($budgetActivities as $activity)
+                                        <tr wire:key="dashboard-budget-activity-{{ $activity->id }}">
+                                            <td>{{ $activity->activity_name }}</td>
+                                            <td>{{ $activity->lpj ? ucfirst(str_replace('_', ' ', $activity->lpj->status)) : 'Belum dibuat' }}</td>
+                                            <td>Rp {{ number_format((float) $activity->total_amount, 0, ',', '.') }}</td>
+                                            <td>
+                                                @if ($activity->lpj?->status === 'approved')
+                                                    Rp {{ number_format((float) $activity->lpj->items->sum('total_price'), 0, ',', '.') }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-muted mb-0">Belum ada proposal kegiatan yang disetujui pada periode ini.</p>
+                    @endif
+                @elseif (! $activePeriod)
+                    <p class="text-muted mb-0">Ringkasan pagu tersedia setelah periode aktif ditetapkan.</p>
+                @else
+                    <p class="text-muted mb-0">Akun belum terhubung dengan ORMAWA.</p>
+                @endif
+            </div>
+        </section>
+    @endif
 
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>

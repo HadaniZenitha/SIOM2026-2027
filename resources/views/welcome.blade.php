@@ -51,6 +51,8 @@
     body.siom-dark-theme .siom-nav,
     body.siom-dark-theme .siom-mobile-toggle,
     body.siom-dark-theme .siom-chunky-card,
+    body.siom-dark-theme .siom-benefit-card,
+    body.siom-dark-theme .siom-information-card,
     body.siom-dark-theme .siom-faq-item {
       background-color: var(--bg-card);
       color: var(--text-main);
@@ -430,6 +432,8 @@
       border: 2px solid var(--border-dark);
       white-space: nowrap; flex-shrink: 0;
     }
+    .siom-card-pill.is-final { background: var(--blue-primary); }
+    .siom-chunky-card.is-final { border-color: var(--blue-primary); background: var(--blue-light); }
     .siom-card-content { flex: 1; }
     .siom-card-title {
       font-family: var(--font-display);
@@ -439,6 +443,104 @@
     .siom-card-sub {
       font-size: 0.8125rem; font-weight: 600; color: var(--text-muted);
     }
+
+    /* LANDING PAGE BENEFITS */
+    .siom-benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1.25rem;
+    }
+    .siom-benefit-card {
+      min-height: 100%;
+      padding: 1.4rem;
+      border: var(--border-w) solid var(--border-dark);
+      border-radius: 18px;
+      background: var(--bg-card);
+      box-shadow: 4px 4px 0 var(--border-dark);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .siom-benefit-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--border-dark);
+    }
+    .siom-benefit-icon {
+      width: 3rem;
+      height: 3rem;
+      margin-bottom: 0.9rem;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--border-dark);
+      border-radius: 12px;
+      background: var(--blue-ice);
+      color: var(--blue-primary);
+      font-size: 1.4rem;
+    }
+    .siom-benefit-card h3 {
+      margin-bottom: 0.45rem;
+      color: var(--text-main);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+    .siom-benefit-card p {
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      line-height: 1.65;
+    }
+    .siom-information-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+    }
+    .siom-information-card {
+      padding: 1.35rem;
+      border: var(--border-w) solid var(--border-dark);
+      border-radius: 18px;
+      background: var(--bg-card);
+      box-shadow: 4px 4px 0 var(--border-dark);
+    }
+    .siom-information-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.7rem;
+      margin-bottom: 0.85rem;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .siom-information-category {
+      padding: 0.25rem 0.65rem;
+      border: 1px solid var(--border-dark);
+      border-radius: 999px;
+      background: var(--blue-ice);
+      color: var(--blue-dark);
+    }
+    .siom-information-card h3 {
+      margin-bottom: 0.5rem;
+      color: var(--text-main);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+    .siom-information-card p {
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      line-height: 1.65;
+      white-space: pre-line;
+    }
+    .siom-information-document {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--blue-dark);
+      font-size: 0.84rem;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .siom-information-document:hover { text-decoration: underline; }
 
     /* FAQ ACCORDION */
     .siom-faq-item {
@@ -739,7 +841,9 @@
     <div class="siom-nav-menu-wrapper" id="navMenu">
       <div class="siom-nav-links">
         <a href="#filosofi">Filosofi</a>
-        <a href="#agenda">Agenda</a>
+        <a href="#keunggulan">Keunggulan</a>
+        <a href="#agenda">Alur Administrasi</a>
+        <a href="#informasi-kemahasiswaan">Informasi Kemahasiswaan</a>
         <a href="#fakultas">Fakultas & Prodi</a>
         <a href="#ormawa">Ormawa</a>
         <a href="#faq">FAQ</a>
@@ -838,80 +942,133 @@
     </div>
   </section>
 
-  <!-- 3. Agenda & Alur Kegiatan Section -->
+  <!-- 3. Keunggulan Sistem -->
+  <section id="keunggulan" class="siom-section">
+    <div class="siom-section-header">
+      <div class="siom-section-subtitle">Administrasi lebih praktis dan terarah</div>
+      <h2 class="siom-section-title">KEUNGGULAN SISTEM SIOM</h2>
+      <p class="siom-section-desc">Satu sistem untuk membantu ORMAWA mengelola kegiatan secara tertib, transparan, dan akuntabel.</p>
+    </div>
+
+    <div class="siom-benefit-grid">
+      <article class="siom-benefit-card">
+        <div class="siom-benefit-icon"><i class="bi bi-diagram-3"></i></div>
+        <h3>Alur Terpusat</h3>
+        <p>Pengajuan proposal, proses persetujuan, pelaksanaan kegiatan, dan pelaporan LPJ dikelola dalam satu alur yang mudah dipantau.</p>
+      </article>
+      <article class="siom-benefit-card">
+        <div class="siom-benefit-icon"><i class="bi bi-bell"></i></div>
+        <h3>Pengingat Tenggat</h3>
+        <p>Notifikasi membantu pengurus menindaklanjuti proposal yang menunggu persetujuan dan mengingatkan penyusunan LPJ setelah kegiatan.</p>
+      </article>
+      <article class="siom-benefit-card">
+        <div class="siom-benefit-icon"><i class="bi bi-pie-chart"></i></div>
+        <h3>Pagu Lebih Transparan</h3>
+        <p>Informasi alokasi dan pemanfaatan pagu membantu ORMAWA serta pihak terkait memantau penggunaan dana kegiatan.</p>
+      </article>
+      <article class="siom-benefit-card">
+        <div class="siom-benefit-icon"><i class="bi bi-file-earmark-check"></i></div>
+        <h3>Dokumen Tertata</h3>
+        <p>Proposal, dokumen persetujuan, bukti transaksi, dan LPJ tersimpan lebih terstruktur untuk mendukung akuntabilitas administrasi.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 4. Agenda & Alur Kegiatan Section -->
   <section id="agenda" class="siom-section">
     <div class="siom-section-header">
       <div class="siom-section-subtitle">Rangkaian Alur Administrasi</div>
-      <h2 class="siom-section-title">AGENDA & WORKFLOW 2026</h2>
-      <p class="siom-section-desc">Tahapan resmi pengajuan proposal, verifikasi, dan pelaporan kegiatan ormawa.</p>
+      <h2 class="siom-section-title">ALUR ADMINISTRASI ORMAWA</h2>
+      <p class="siom-section-desc">Tahapan pengajuan proposal, verifikasi, pelaksanaan, dan pelaporan kegiatan ORMAWA.</p>
     </div>
 
     <div class="siom-timeline-container">
       <div class="siom-timeline-line"></div>
-
-      <!-- Item 1 -->
-      <div class="siom-timeline-item">
-        <div class="siom-timeline-node"></div>
-        <div class="siom-chunky-card">
-          <div class="siom-card-pill">TAHAP 1</div>
-          <div class="siom-card-content">
-            <div class="siom-card-title">PENYUSUNAN PROPOSAL & RAB (PROTEKSI TENGGAT H-30 HARI)</div>
-            <div class="siom-card-sub"><i class="bi bi-clock-history text-warning me-1"></i> <strong>Ketentuan Sistem:</strong> Tanggal kegiatan wajib minimal 30 hari kalender setelah tanggal pengajuan proposal. Dokumen dapat digenerate otomatis atau diunggah mandiri (.docx/.pdf max 20MB).</div>
-          </div>
+        <div class="siom-timeline-item">
+          <div class="siom-timeline-node"></div>
+          <article class="siom-chunky-card">
+            <div class="siom-card-pill">TAHAP 1</div>
+            <div class="siom-card-content">
+              <h3 class="siom-card-title">Penyusunan proposal dan RAB</h3>
+              <p class="siom-card-sub">Sekretaris ORMAWA menyiapkan proposal dan RAB. Tanggal kegiatan diajukan minimal 30 hari kalender sebelum pelaksanaan.</p>
+            </div>
+          </article>
         </div>
-      </div>
-
-      <!-- Item 2 -->
-      <div class="siom-timeline-item">
-        <div class="siom-timeline-node"></div>
-        <div class="siom-chunky-card">
-          <div class="siom-card-pill">TAHAP 2</div>
-          <div class="siom-card-content">
-            <div class="siom-card-title">REVIEW & PERSETUJUAN PEMBINA SERTA KAPRODI</div>
-            <div class="siom-card-sub"><i class="bi bi-diagram-3 me-1"></i> <strong>Alur Fleksibel:</strong> HIMA (tingkat prodi) diverifikasi Pembina & Kaprodi. Sedangkan UKM & DPM (tingkat universitas) diverifikasi langsung oleh Pembina Unit.</div>
-          </div>
+        <div class="siom-timeline-item">
+          <div class="siom-timeline-node"></div>
+          <article class="siom-chunky-card">
+            <div class="siom-card-pill">TAHAP 2</div>
+            <div class="siom-card-content">
+              <h3 class="siom-card-title">Review dan persetujuan</h3>
+              <p class="siom-card-sub">Proposal HIMA ditinjau Pembina dan Kaprodi. Proposal UKM, DPM, dan BEM ditinjau Pembina unit.</p>
+            </div>
+          </article>
         </div>
-      </div>
-
-      <!-- Item 3 -->
-      <div class="siom-timeline-item">
-        <div class="siom-timeline-node"></div>
-        <div class="siom-chunky-card">
-          <div class="siom-card-pill">TAHAP 3</div>
-          <div class="siom-card-content">
-            <div class="siom-card-title">VALIDASI ANGGARAN & PAGU OLEH BIRO KEMAHASISWAAN (BKA)</div>
-            <div class="siom-card-sub"><i class="bi bi-shield-check me-1"></i> Pemeriksaan ketersediaan pagu dana kampus se-ITSK RS dr. Soepraoen</div>
-          </div>
+        <div class="siom-timeline-item">
+          <div class="siom-timeline-node"></div>
+          <article class="siom-chunky-card">
+            <div class="siom-card-pill">TAHAP 3</div>
+            <div class="siom-card-content">
+              <h3 class="siom-card-title">Validasi anggaran dan pagu</h3>
+              <p class="siom-card-sub">Biro Kemahasiswaan memeriksa ketersediaan pagu dan kelayakan anggaran kegiatan.</p>
+            </div>
+          </article>
         </div>
-      </div>
-
-      <!-- Item 4 -->
-      <div class="siom-timeline-item">
-        <div class="siom-timeline-node"></div>
-        <div class="siom-chunky-card">
-          <div class="siom-card-pill">TAHAP 4</div>
-          <div class="siom-card-content">
-            <div class="siom-card-title">PERSETUJUAN AKHIR & TTD ELEKTRONIK WAKIL REKTOR III</div>
-            <div class="siom-card-sub"><i class="bi bi-pen-fill me-1"></i> Otorisasi final (ACC Final) & pencairan dana kegiatan</div>
-          </div>
+        <div class="siom-timeline-item">
+          <div class="siom-timeline-node"></div>
+          <article class="siom-chunky-card">
+            <div class="siom-card-pill">TAHAP 4</div>
+            <div class="siom-card-content">
+              <h3 class="siom-card-title">Persetujuan akhir dan tanda tangan elektronik</h3>
+              <p class="siom-card-sub">Wakil Rektor III memberikan persetujuan akhir sebelum pencairan dana kegiatan.</p>
+            </div>
+          </article>
         </div>
-      </div>
-
-      <!-- Item 5 -->
-      <div class="siom-timeline-item">
-        <div class="siom-timeline-node"></div>
-        <div class="siom-chunky-card" style="border-color: var(--blue-primary); background: var(--blue-light);">
-          <div class="siom-card-pill" style="background: var(--blue-primary);">TAHAP 5</div>
-          <div class="siom-card-content">
-            <div class="siom-card-title">PELAKSANAAN KEGIATAN & UNGGAH LAPORAN LPJ TERPADU</div>
-            <div class="siom-card-sub"><i class="bi bi-journal-check me-1"></i> Pelaporan pertanggungjawaban dana, nota transaksi, & dokumentasi</div>
-          </div>
+        <div class="siom-timeline-item">
+          <div class="siom-timeline-node"></div>
+          <article class="siom-chunky-card is-final">
+            <div class="siom-card-pill is-final">TAHAP 5</div>
+            <div class="siom-card-content">
+              <h3 class="siom-card-title">Pelaksanaan kegiatan dan penyusunan LPJ</h3>
+              <p class="siom-card-sub">Setelah kegiatan, ORMAWA menyusun LPJ yang dilengkapi bukti transaksi dan dokumentasi.</p>
+            </div>
+          </article>
         </div>
-      </div>
     </div>
   </section>
 
-  <!-- 4. Fakultas & 18 Program Studi -->
+  <!-- 5. Informasi Kemahasiswaan -->
+  <section id="informasi-kemahasiswaan" class="siom-section">
+    <div class="siom-section-header">
+        <div class="siom-section-subtitle">Pengumuman resmi dan dokumen</div>
+        <h2 class="siom-section-title">INFORMASI KEMAHASISWAAN</h2>
+        <p class="siom-section-desc">Surat edaran, surat keputusan, pengumuman, dan informasi resmi dari bidang kemahasiswaan.</p>
+    </div>
+
+    <div class="siom-information-grid">
+        @forelse ($informations as $information)
+          <article class="siom-information-card">
+            <div class="siom-information-meta">
+              <span class="siom-information-category">{{ $information->categoryLabel() }}</span>
+              <time>{{ $information->published_at?->format('d/m/Y') ?? 'Informasi terbaru' }}</time>
+            </div>
+            <h3>{{ $information->title }}</h3>
+            <p>{{ $information->summary }}</p>
+            @if ($information->document_path)
+              <a class="siom-information-document"
+                 href="{{ route('student-affairs-information.document', $information) }}">
+                <i class="bi bi-file-earmark-arrow-down"></i>
+                Lihat dokumen{{ $information->document_name ? ': '.$information->document_name : '' }}
+              </a>
+            @endif
+          </article>
+        @empty
+          <p class="siom-section-desc">Belum ada informasi kemahasiswaan yang dipublikasikan.</p>
+        @endforelse
+    </div>
+  </section>
+
+  <!-- 6. Fakultas & 18 Program Studi -->
   <section id="fakultas" class="siom-section" style="padding-top:1rem;">
     <div class="siom-section-header">
       <div class="siom-section-subtitle">Struktur Institusional</div>
@@ -974,7 +1131,7 @@
     </div>
   </section>
 
-  <!-- 4.5 Kategori Ormawa Section -->
+  <!-- 6. Kategori Ormawa Section -->
   <section id="ormawa" class="siom-section" style="padding-top:1rem;">
     <div class="siom-section-header">
       <div class="siom-section-subtitle">Klasifikasi Organisasi</div>
@@ -1018,7 +1175,7 @@
     </div>
   </section>
 
-  <!-- 5. FAQ Section -->
+  <!-- 7. FAQ Section -->
   <section id="faq" class="siom-section">
     <div class="siom-section-header">
       <div class="siom-section-subtitle">Tanya Jawab</div>
@@ -1102,18 +1259,18 @@
       </div>
       <div class="siom-faq-body">
         <p>
-          Laporan Pertanggungjawaban (LPJ) beserta rekapitulasi realisasi dana, bukti kuitansi/nota sah, dan dokumentasi foto/video kegiatan wajib diunggah melalui menu <strong>Laporan LPJ</strong> paling lambat <strong>14 hari kalender</strong> terhitung setelah tanggal akhir kegiatan selesai.
+          Laporan Pertanggungjawaban (LPJ) beserta rekapitulasi realisasi dana, bukti kuitansi/nota sah, dan dokumentasi foto/video kegiatan wajib diunggah melalui menu <strong>Laporan LPJ</strong> paling lambat <strong>satu pekan (7 hari kalender)</strong> setelah kegiatan selesai.
         </p>
         <ul style="margin: 0.6rem 0 0.6rem 1.25rem; line-height: 1.7;">
           <li>Format berkas yang didukung adalah <strong>.PDF</strong> atau <strong>.DOCX</strong> dengan ukuran maksimal 20 MB.</li>
           <li>Berkas LPJ yang masuk akan langsung diperiksa oleh Verifikator BKA untuk verifikasi realisasi saldo pagu.</li>
-          <li>Ormawa yang melewati batas waktu 14 hari akan menerima penangguhan (hold) sistem otomatis dan tidak dapat mengajukan proposal kegiatan baru hingga LPJ tuntas disetujui.</li>
+          <li>Sistem memberikan pengingat kepada pengurus ketika tenggat LPJ mendekat dan jika LPJ belum dibuat setelah melewati satu pekan.</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- 6. Retro Blue Stripes Banner -->
+  <!-- 8. Retro Blue Stripes Banner -->
   <div class="siom-stripes">
     <div class="siom-stripe-1"></div>
     <div class="siom-stripe-2"></div>
@@ -1121,7 +1278,7 @@
     <div class="siom-stripe-4"></div>
   </div>
 
-  <!-- 7. Contact Card -->
+  <!-- 9. Contact Card -->
   <section id="kontak" class="siom-section" style="padding-top:0;">
     <div class="siom-contact-card">
       <div>
@@ -1171,7 +1328,7 @@
     </div>
   </section>
 
-  <!-- 8. Footer -->
+  <!-- 10. Footer -->
   <footer class="siom-footer">
     <div>
       © 2026 Powered by RnD UPTI & BKA - ITSK RS dr. Soepraoen Malang
