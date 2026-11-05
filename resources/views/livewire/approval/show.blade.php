@@ -147,6 +147,31 @@
         </span>
     </div>
 
+    <!-- Quick Document Preview Banner -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 bg-white border rounded-3 shadow-sm">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                <i class="bi bi-file-earmark-check"></i> Pratinjau Dokumen
+            </span>
+            <span class="text-muted small">Periksa tampilan berkas resmi sebelum memutuskan persetujuan.</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="siom-admin-btn siom-admin-btn-primary" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', 'docx')">
+                <i class="bi bi-eye"></i> Preview Dokumen Proposal
+            </button>
+            @if ($submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm()))
+                <button type="button" class="siom-admin-btn" onclick="window.openDocPreview('{{ route('documents.preview.nota-dinas.file', $submission->id) }}', '{{ route('documents.preview.nota-dinas', $submission->id) }}', 'Nota Dinas: {{ addslashes($submission->activity_name) }}', 'docx')">
+                    <i class="bi bi-eye"></i> Preview Nota Dinas
+                </button>
+            @endif
+            @if ($submissionStatus === 'approved')
+                <button type="button" class="siom-admin-btn" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $submission->id) }}', '{{ route('documents.preview.signed-proposal', $submission->id) }}', 'Proposal Bertanda Tangan: {{ addslashes($submission->activity_name) }}', 'docx')">
+                    <i class="bi bi-check2-circle"></i> Preview Bertanda Tangan
+                </button>
+            @endif
+        </div>
+    </div>
+
     @if (session('success'))
         <div class="siom-admin-alert siom-admin-alert-success">{{ session('success') }}</div>
     @endif
@@ -328,7 +353,7 @@
                         @forelse ($submission->items as $item)
                             <tr wire:key="approval-item-{{ $item->id }}">
                                 <td>{{ $item->item_name }}</td>
-                                <td>{{ $item->qty }} {{ $item->unit }}</td>
+                                <td>{{ $item->formatted_qty }}</td>
                                 <td>Rp {{ number_format((float) $item->price, 0, ',', '.') }}</td>
                                 <td class="text-end">Rp {{ number_format((float) $item->total_price, 0, ',', '.') }}</td>
                             </tr>

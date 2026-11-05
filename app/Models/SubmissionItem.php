@@ -29,4 +29,13 @@ class SubmissionItem extends Model
     {
         return $this->belongsTo(Submission::class);
     }
+
+    public function getFormattedQtyAttribute(): string
+    {
+        $num = (float) $this->qty;
+        $formatted = (floor($num) == $num) ? (string) (int) $num : rtrim(rtrim(number_format($num, 4, '.', ''), '0'), '.');
+        $unit = trim((string) ($this->unit ?? ''));
+
+        return $unit !== '' ? "{$formatted} {$unit}" : $formatted;
+    }
 }

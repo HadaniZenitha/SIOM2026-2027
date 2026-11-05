@@ -1,2 +1,6 @@
 *
 !.gitignore
+!document-templates/
+!document-templates/*.docx
+document-templates/backup_before_penataan/
+document-templates/originals_backup/

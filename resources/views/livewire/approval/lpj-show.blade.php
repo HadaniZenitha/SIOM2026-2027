@@ -57,15 +57,40 @@
         </div>
     </div>
 
+    <!-- Quick Document Preview Banner -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 bg-white border rounded-3 shadow-sm">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                <i class="bi bi-file-earmark-check"></i> Pratinjau Dokumen
+            </span>
+            <span class="text-muted small">Periksa berkas LPJ resmi secara visual sebelum memutuskan persetujuan.</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="siom-admin-btn siom-admin-btn-primary" onclick="window.openDocPreview('{{ route('documents.preview.lpj.file', $lpj->id) }}', '{{ route('documents.preview.lpj', $lpj->id) }}', 'LPJ: {{ addslashes($lpj->title) }}', 'docx')">
+                <i class="bi bi-eye"></i> Preview Dokumen LPJ
+            </button>
+            @if ($lpj->status === 'approved')
+                <button type="button" class="siom-admin-btn" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="window.openDocPreview('{{ route('documents.preview.signed-lpj.file', $lpj->id) }}', '{{ route('documents.preview.signed-lpj', $lpj->id) }}', 'LPJ Bertanda Tangan: {{ addslashes($lpj->title) }}', 'docx')">
+                    <i class="bi bi-check2-circle"></i> Preview Bertanda Tangan
+                </button>
+            @endif
+        </div>
+    </div>
+
     <section class="siom-admin-card">
         <div class="siom-admin-card-body">
             <h2 class="h5 mb-2">Ringkasan</h2>
             <p class="mb-3">{{ $lpj->description }}</p>
             <div class="siom-doc-list">
                 @foreach ($lpj->documents as $document)
-                    <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="download({{ $document->id }})">
-                        <i class="bi bi-download"></i> {{ $document->file_name }}
-                    </button>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.attachment.file', $document->id) }}', '{{ route('documents.preview.attachment.file', $document->id) }}', 'Lampiran: {{ addslashes($document->file_name) }}', '{{ str_ends_with(strtolower($document->file_name), '.pdf') ? 'pdf' : 'docx' }}')">
+                            <i class="bi bi-eye"></i> Lihat {{ $document->file_name }}
+                        </button>
+                        <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="download({{ $document->id }})" title="Unduh">
+                            <i class="bi bi-download"></i>
+                        </button>
+                    </div>
                 @endforeach
             </div>
         </div>

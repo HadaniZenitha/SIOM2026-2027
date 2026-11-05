@@ -80,7 +80,7 @@
         }
         .siom-dashboard .siom-canvas-guide {
             position: absolute;
-            bottom: 38px;
+            bottom: 42px;
             left: 20px;
             right: 20px;
             border-bottom: 1.5px dashed #cbd5e1;
@@ -95,7 +95,7 @@
         .siom-dashboard .siom-sign-canvas {
             display: block;
             width: 100%;
-            height: 200px;
+            height: 240px;
             cursor: crosshair;
         }
         .siom-dashboard .siom-canvas-toolbar {
@@ -123,14 +123,14 @@
             background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
             border-radius: 10px;
             border: 1px solid #e2e8f0;
-            min-height: 110px;
+            min-height: 130px;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: .75rem;
         }
         .siom-dashboard .siom-checkerboard img {
-            max-height: 90px;
+            max-height: 120px;
             max-width: 100%;
             object-fit: contain;
         }
@@ -468,7 +468,12 @@
                                     <strong>{{ $proposal->activity_name }}</strong>
                                     <small>{{ $proposal->ormawa?->name }} · {{ $proposal->period?->name }}</small>
                                 </div>
-                                <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $proposal->id) }}', '{{ route('documents.preview.signed-proposal', $proposal->id) }}', 'Proposal: {{ addslashes($proposal->activity_name) }}', 'docx')">
+                                        <i class="bi bi-eye"></i> Preview
+                                    </button>
+                                    <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                </div>
                             </div>
                             <div class="siom-step-cols">
                                 @foreach ($proposal->approvalSteps as $step)
@@ -546,7 +551,12 @@
                                     <strong>{{ $lpj->title }}</strong>
                                     <small>{{ $lpj->submission?->activity_name }} · {{ $lpj->ormawa?->name }}</small>
                                 </div>
-                                <button type="button" class="btn" wire:click="downloadSignedLpj({{ $lpj->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.openDocPreview('{{ route('documents.preview.signed-lpj.file', $lpj->id) }}', '{{ route('documents.preview.signed-lpj', $lpj->id) }}', 'LPJ: {{ addslashes($lpj->title) }}', 'docx')">
+                                        <i class="bi bi-eye"></i> Preview
+                                    </button>
+                                    <button type="button" class="btn" wire:click="downloadSignedLpj({{ $lpj->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                </div>
                             </div>
                             <div class="siom-step-cols">
                                 @foreach ($lpj->approvalSteps as $step)
@@ -588,7 +598,12 @@
                                 </div>
                                 <span class="siom-track-status">{{ ucfirst(str_replace('_', ' ', $proposalStatus)) }}</span>
                                 @if ($proposalStatus === 'approved')
-                                    <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})">Unduh DOCX</button>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $proposal->id) }}', '{{ route('documents.preview.signed-proposal', $proposal->id) }}', 'Proposal: {{ addslashes($proposal->activity_name) }}', 'docx')">
+                                            <i class="bi bi-eye"></i> Preview
+                                        </button>
+                                        <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})">Unduh DOCX</button>
+                                    </div>
                                 @endif
                             </div>
                             <div class="siom-step-cols">
@@ -676,7 +691,7 @@
                     const rect = this.canvas.parentElement.getBoundingClientRect();
                     const dpr = window.devicePixelRatio || 1;
                     const displayWidth = Math.max(300, Math.floor(rect.width));
-                    const displayHeight = 200;
+                    const displayHeight = 240;
 
                     if (this.canvas.width !== displayWidth * dpr || this.canvas.height !== displayHeight * dpr) {
                         this.canvas.width = displayWidth * dpr;
@@ -706,7 +721,7 @@
                         this.ctx.lineCap = 'round';
                         this.ctx.lineJoin = 'round';
                         this.ctx.strokeStyle = this.penColor;
-                        this.ctx.lineWidth = 2.8;
+                        this.ctx.lineWidth = 3.6;
 
                         const p1 = pts[pts.length - 2];
                         const p2 = pts[pts.length - 1];
@@ -733,7 +748,7 @@
                 drawDot(pt) {
                     this.ctx.beginPath();
                     this.ctx.fillStyle = this.penColor;
-                    this.ctx.arc(pt.x, pt.y, 1.4, 0, Math.PI * 2);
+                    this.ctx.arc(pt.x, pt.y, 1.8, 0, Math.PI * 2);
                     this.ctx.fill();
                 },
 
@@ -756,7 +771,7 @@
                         if (stroke.points.length === 1) {
                             this.ctx.beginPath();
                             this.ctx.fillStyle = stroke.color;
-                            this.ctx.arc(stroke.points[0].x, stroke.points[0].y, 1.4, 0, Math.PI * 2);
+                            this.ctx.arc(stroke.points[0].x, stroke.points[0].y, 1.8, 0, Math.PI * 2);
                             this.ctx.fill();
                             continue;
                         }
@@ -764,7 +779,7 @@
                         this.ctx.lineCap = 'round';
                         this.ctx.lineJoin = 'round';
                         this.ctx.strokeStyle = stroke.color;
-                        this.ctx.lineWidth = 2.8;
+                        this.ctx.lineWidth = 3.6;
                         this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
                         for (let i = 1; i < stroke.points.length; i++) {
                             this.ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
@@ -798,20 +813,60 @@
                 },
 
                 exportTrimmedDataUrl() {
-                    const offCanvas = document.createElement('canvas');
-                    offCanvas.width = 500;
-                    offCanvas.height = 200;
-                    const offCtx = offCanvas.getContext('2d');
+                    if (!this.strokes || this.strokes.length === 0) {
+                        return this.canvas.toDataURL('image/png');
+                    }
 
                     const dpr = window.devicePixelRatio || 1;
-                    const w = this.canvas.width / dpr;
-                    const h = this.canvas.height / dpr;
+                    const canvasW = this.canvas.width / dpr;
+                    const canvasH = this.canvas.height / dpr;
 
-                    const scale = Math.min(480 / w, 180 / h);
-                    const offsetX = (500 - w * scale) / 2;
-                    const offsetY = (200 - h * scale) / 2;
+                    // 1. Hitung bounding box sebenarnya dari seluruh goresan tanda tangan
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    for (const stroke of this.strokes) {
+                        for (const pt of stroke.points) {
+                            if (pt.x < minX) minX = pt.x;
+                            if (pt.x > maxX) maxX = pt.x;
+                            if (pt.y < minY) minY = pt.y;
+                            if (pt.y > maxY) maxY = pt.y;
+                        }
+                    }
 
-                    offCtx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, offsetX, offsetY, w * scale, h * scale);
+                    if (minX === Infinity || maxX === -Infinity) {
+                        return this.canvas.toDataURL('image/png');
+                    }
+
+                    // 2. Beri margin/padding aman (14px) agar lekukan tepi goresan tidak terpotong
+                    const padding = 14;
+                    const srcX = Math.max(0, minX - padding);
+                    const srcY = Math.max(0, minY - padding);
+                    const srcW = Math.min(canvasW - srcX, (maxX - minX) + (padding * 2));
+                    const srcH = Math.min(canvasH - srcY, (maxY - minY) + (padding * 2));
+
+                    // 3. Siapkan canvas ekspor berstandar tanda tangan resmi (proporsional & tajam)
+                    const exportWidth = 520;
+                    const aspect = srcW / Math.max(1, srcH);
+                    const exportHeight = Math.round(Math.min(260, Math.max(170, exportWidth / Math.max(1.3, aspect))));
+
+                    const offCanvas = document.createElement('canvas');
+                    offCanvas.width = exportWidth;
+                    offCanvas.height = exportHeight;
+                    const offCtx = offCanvas.getContext('2d');
+                    offCtx.clearRect(0, 0, exportWidth, exportHeight);
+
+                    // 4. Skalakan goresan agar mengisi ~88% kanvas ekspor secara proporsional dan terpusat
+                    const scale = Math.min((exportWidth * 0.88) / srcW, (exportHeight * 0.86) / srcH);
+                    const drawW = srcW * scale;
+                    const drawH = srcH * scale;
+                    const destX = (exportWidth - drawW) / 2;
+                    const destY = (exportHeight - drawH) / 2;
+
+                    offCtx.drawImage(
+                        this.canvas,
+                        srcX * dpr, srcY * dpr, srcW * dpr, srcH * dpr,
+                        destX, destY, drawW, drawH
+                    );
+
                     return offCanvas.toDataURL('image/png');
                 }
             };

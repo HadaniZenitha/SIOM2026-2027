@@ -65,9 +65,9 @@ class Form extends Component
             ? $lpjItems->map(fn ($item): array => [
                 'submission_item_id' => $item->submission_item_id,
                 'item_name' => $item->item_name,
-                'qty' => $item->qty,
+                'qty' => (float) $item->qty == (int) $item->qty ? (int) $item->qty : (float) $item->qty,
                 'unit' => $item->unit ?? '',
-                'price' => $item->price,
+                'price' => (float) $item->price == (int) $item->price ? (int) $item->price : (float) $item->price,
             ])->all()
             : $this->proposalBudgetItems($lpj->submission);
     }
@@ -290,9 +290,9 @@ class Form extends Component
         return $submission->items->map(fn ($item): array => [
             'submission_item_id' => $item->id,
             'item_name' => $item->item_name,
-            'qty' => $item->qty,
+            'qty' => (float) $item->qty == (int) $item->qty ? (int) $item->qty : (float) $item->qty,
             'unit' => $item->unit ?? '',
-            'price' => $item->price,
+            'price' => (float) $item->price == (int) $item->price ? (int) $item->price : (float) $item->price,
         ])->all();
     }
 

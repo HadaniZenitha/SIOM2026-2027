@@ -306,6 +306,9 @@
                                 <span>{{ $document->file_name }}</span>
                             </div>
                             <div class="siom-admin-actions mb-0" style="margin-top: 0;">
+                                <button class="siom-admin-btn siom-admin-btn-sm" type="button" onclick="window.openDocPreview('{{ route('documents.preview.attachment.file', $document->id) }}', '{{ route('documents.preview.attachment.file', $document->id) }}', 'Lampiran: {{ addslashes($document->file_name) }}', '{{ str_ends_with(strtolower($document->file_name), '.pdf') ? 'pdf' : 'docx' }}')">
+                                    <i class="bi bi-eye"></i> Lihat
+                                </button>
                                 <button class="siom-admin-btn siom-admin-btn-sm" type="button" wire:click="downloadDocument({{ $document->id }})">Unduh</button>
                                 <button class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-danger" type="button" wire:click="removeDocument({{ $document->id }})" wire:confirm="Hapus dokumen ini?">Hapus</button>
                             </div>
@@ -319,6 +322,9 @@
             <a class="siom-admin-btn" href="{{ route('sekretaris.lpj') }}">Batal</a>
             <div class="siom-lpj-save">
                 @if ($lpjId)
+                    <button class="siom-admin-btn" type="button" onclick="window.openDocPreview('{{ route('documents.preview.lpj.file', $lpjId) }}', '{{ route('documents.preview.lpj', $lpjId) }}', 'LPJ: {{ addslashes($title ?: 'Draft LPJ') }}', 'docx')">
+                        <i class="bi bi-eye"></i> Preview Dokumen LPJ
+                    </button>
                     <button class="siom-admin-btn" type="button" wire:click="downloadWord" wire:loading.attr="disabled" wire:target="downloadWord">
                         <i class="bi bi-file-earmark-word"></i> Unduh Word LPJ
                     </button>
