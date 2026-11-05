@@ -3,6 +3,7 @@
 namespace App\Livewire\Sekretaris\Pengajuan;
 
 use App\Models\Document;
+use App\Models\OrganizationDivision;
 use App\Models\Ormawa;
 use App\Models\Period;
 use App\Models\Submission;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -52,6 +54,10 @@ class Create extends Component
     public string $activity_type = '';
 
     public string $divisi_name = '';
+
+    public bool $showDivisionModal = false;
+
+    public string $new_division_name = '';
 
     public ?string $meeting_date = null;
 
@@ -762,9 +768,9 @@ class Create extends Component
         $this->items = $submission->items
             ->map(fn (SubmissionItem $item): array => [
                 'item_name' => $item->item_name,
-                'qty' => $item->qty,
+                'qty' => (float) $item->qty == (int) $item->qty ? (int) $item->qty : (float) $item->qty,
                 'unit' => $item->unit ?? '',
-                'price' => $item->price,
+                'price' => (float) $item->price == (int) $item->price ? (int) $item->price : (float) $item->price,
             ])
             ->all();
         $this->committees = $submission->committees
@@ -815,8 +821,93 @@ class Create extends Component
         ];
     }
 
+    public function updatedDivisiName(string $value): void
+    {
+        if ($value === '__create_new__') {
+            $this->divisi_name = '';
+            $this->openDivisionModal();
+        }
+    }
+
+    public function openDivisionModal(): void
+    {
+        $this->resetValidation('new_division_name');
+        $this->new_division_name = '';
+        $this->showDivisionModal = true;
+    }
+
+    public function closeDivisionModal(): void
+    {
+        $this->resetValidation('new_division_name');
+        $this->new_division_name = '';
+        $this->showDivisionModal = false;
+    }
+
+    public function saveDivision(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+        abort_unless($this->ormawa, 403, 'Data ORMAWA tidak ditemukan.');
+
+        $this->new_division_name = trim($this->new_division_name);
+
+        $this->validate([
+            'new_division_name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('organization_divisions', 'name')
+                    ->where('ormawa_id', $this->ormawa->id),
+            ],
+        ], [
+            'new_division_name.required' => 'Nama divisi wajib diisi.',
+            'new_division_name.max' => 'Nama divisi maksimal 255 karakter.',
+            'new_division_name.unique' => 'Divisi ini sudah terdaftar di ORMAWA Anda.',
+        ]);
+
+        $division = OrganizationDivision::create([
+            'ormawa_id' => $this->ormawa->id,
+            'name' => $this->new_division_name,
+        ]);
+
+        $this->divisi_name = $division->name;
+        $this->closeDivisionModal();
+
+        session()->flash('division_success', 'Divisi "'.$division->name.'" berhasil dibuat dan dipilih.');
+    }
+
+    public function deleteDivision(int $divisionId): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+        abort_unless($this->ormawa, 403);
+
+        $division = $this->ormawa->divisions()->findOrFail($divisionId);
+
+        if ($division->members()->exists()) {
+            throw ValidationException::withMessages([
+                'new_division_name' => 'Divisi tidak dapat dihapus selama masih digunakan oleh data anggota.',
+            ]);
+        }
+
+        $deletedName = $division->name;
+        $division->delete();
+
+        if ($this->divisi_name === $deletedName) {
+            $this->divisi_name = '';
+        }
+
+        session()->flash('division_success', 'Divisi "'.$deletedName.'" berhasil dihapus.');
+    }
+
     public function render(): View
     {
-        return view('livewire.sekretaris.pengajuan.create');
+        $divisions = $this->ormawa
+            ? $this->ormawa->divisions()->orderBy('name')->get()
+            : collect();
+
+        return view('livewire.sekretaris.pengajuan.create', [
+            'divisions' => $divisions,
+        ]);
     }
 }

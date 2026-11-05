@@ -130,6 +130,39 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/laporan', App\Livewire\Laporan\Index::class)
         ->name('laporan');
+
+    /*
+    |--------------------------------------------------------------------------
+    | PREVIEW DOKUMEN PROPOSAL & LPJ
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('dokumen/preview')->name('documents.preview.')->group(function () {
+        // Stream binary file inline (untuk docx-preview di browser & iframe PDF)
+        Route::get('/proposal/{submission}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamProposal'])
+            ->name('proposal.file');
+        Route::get('/nota-dinas/{submission}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamNotaDinas'])
+            ->name('nota-dinas.file');
+        Route::get('/signed-proposal/{submission}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamSignedProposal'])
+            ->name('signed-proposal.file');
+        Route::get('/lpj/{lpj}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamLpj'])
+            ->name('lpj.file');
+        Route::get('/signed-lpj/{lpj}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamSignedLpj'])
+            ->name('signed-lpj.file');
+        Route::get('/attachment/{document}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamAttachment'])
+            ->name('attachment.file');
+
+        // Halaman penuh dokumen (Dedicated Standalone Preview Page)
+        Route::get('/proposal/{submission}', [App\Http\Controllers\DocumentPreviewController::class, 'viewProposal'])
+            ->name('proposal');
+        Route::get('/nota-dinas/{submission}', [App\Http\Controllers\DocumentPreviewController::class, 'viewNotaDinas'])
+            ->name('nota-dinas');
+        Route::get('/signed-proposal/{submission}', [App\Http\Controllers\DocumentPreviewController::class, 'viewSignedProposal'])
+            ->name('signed-proposal');
+        Route::get('/lpj/{lpj}', [App\Http\Controllers\DocumentPreviewController::class, 'viewLpj'])
+            ->name('lpj');
+        Route::get('/signed-lpj/{lpj}', [App\Http\Controllers\DocumentPreviewController::class, 'viewSignedLpj'])
+            ->name('signed-lpj');
+    });
 });
 
 require __DIR__.'/auth.php';

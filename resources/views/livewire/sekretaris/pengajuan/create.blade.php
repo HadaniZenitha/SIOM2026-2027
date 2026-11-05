@@ -578,8 +578,38 @@
                                 <input type="text" class="form-control" wire:model="activity_theme" placeholder="Tema/sub-judul kegiatan">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-semibold">Divisi Penyelenggara</label>
-                                <input type="text" class="form-control" wire:model="divisi_name" placeholder="Contoh: Divisi Kominfo">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label fw-semibold mb-0">Divisi Penyelenggara</label>
+                                    <button type="button" class="btn btn-link p-0 text-primary small text-decoration-none" wire:click="openDivisionModal" style="font-size: 0.78rem;" title="Kelola / Tambah Divisi">
+                                        <i class="bi bi-gear-fill"></i> Kelola Divisi
+                                    </button>
+                                </div>
+                                <div class="input-group">
+                                    <select class="form-select @error('divisi_name') is-invalid @enderror" wire:model.live="divisi_name">
+                                        <option value="">-- Pilih Divisi Penyelenggara --</option>
+                                        @foreach ($divisions as $div)
+                                            <option value="{{ $div->name }}">{{ $div->name }}</option>
+                                        @endforeach
+                                        @if ($divisi_name && ! $divisions->pluck('name')->contains($divisi_name))
+                                            <option value="{{ $divisi_name }}">{{ $divisi_name }} (Kustom)</option>
+                                        @endif
+                                        <option value="__create_new__" class="fw-semibold text-primary">+ Tambah Divisi Baru...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" wire:click="openDivisionModal" title="Buat Divisi Baru">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </button>
+                                </div>
+                                @error('divisi_name')
+                                    <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                @enderror
+                                @if (session()->has('division_success'))
+                                    <small class="text-success d-block mt-1">
+                                        <i class="bi bi-check-circle-fill"></i> {{ session('division_success') }}
+                                    </small>
+                                @endif
+                                <small class="text-muted d-block mt-1" style="font-size: 0.78rem;">
+                                    Pilih divisi ORMAWA yang menyelenggarakan kegiatan.
+                                </small>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Tanggal Rapat Koordinasi</label>
@@ -774,4 +804,92 @@
             </div>
         @endif
     </div>
+
+    <!-- Modal Tambah / Kelola Divisi ORMAWA -->
+    @if ($showDivisionModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px);" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="modal-header bg-primary text-white py-3">
+                        <h6 class="modal-title fw-bold d-flex align-items-center gap-2 mb-0">
+                            <i class="bi bi-diagram-3-fill"></i> Kelola Divisi: {{ $ormawa?->name ?? 'ORMAWA' }}
+                        </h6>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeDivisionModal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <p class="small text-muted mb-3">
+                            Tambahkan divisi baru untuk ORMAWA Anda. Divisi yang dibuat akan otomatis muncul di pilihan dropdown formulir dan tersimpan untuk pengajuan berikutnya.
+                        </p>
+
+                        <form wire:submit="saveDivision">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Nama Divisi Baru <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text"
+                                           class="form-control @error('new_division_name') is-invalid @enderror"
+                                           wire:model="new_division_name"
+                                           placeholder="Contoh: Divisi Kominfo, BPH, PSDM..."
+                                           autofocus>
+                                    <button type="submit" class="btn btn-primary d-flex align-items-center gap-1" wire:loading.attr="disabled">
+                                        <i class="bi bi-plus-lg"></i> Simpan
+                                    </button>
+                                </div>
+                                @error('new_division_name')
+                                    <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                @enderror
+                            </div>
+                        </form>
+
+                        <!-- Daftar Divisi yang Sudah Ada -->
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold text-uppercase text-muted mb-0">
+                                    Daftar Divisi ORMAWA Ini ({{ $divisions->count() }})
+                                </label>
+                            </div>
+                            @if ($divisions->isEmpty())
+                                <div class="p-3 bg-light rounded text-center small text-muted">
+                                    Belum ada divisi tersimpan. Silakan masukkan nama divisi baru di atas.
+                                </div>
+                            @else
+                                <div class="list-group list-group-flush border rounded-3 overflow-hidden" style="max-height: 220px; overflow-y: auto;">
+                                    @foreach ($divisions as $item)
+                                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi bi-tag text-primary"></i>
+                                                <span class="fw-semibold">{{ $item->name }}</span>
+                                                @if ($divisi_name === $item->name)
+                                                    <span class="badge bg-success-subtle text-success small">Terpilih</span>
+                                                @endif
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary py-0 px-2"
+                                                        wire:click="$set('divisi_name', '{{ addslashes($item->name) }}'); closeDivisionModal()"
+                                                        title="Pilih divisi ini untuk form">
+                                                    Pilih
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                        wire:click="deleteDivision({{ $item->id }})"
+                                                        wire:confirm="Yakin ingin menghapus divisi '{{ $item->name }}'?"
+                                                        title="Hapus divisi">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light py-2 px-4">
+                        <button type="button" class="btn btn-secondary btn-sm" wire:click="closeDivisionModal">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

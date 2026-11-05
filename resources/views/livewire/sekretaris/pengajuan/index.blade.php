@@ -136,6 +136,9 @@
                                             @php
                                                 $isBemOrDpm = $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm());
                                             @endphp
+                                            <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', 'docx')" title="Lihat Pratinjau Proposal">
+                                                <i class="bi bi-eye"></i> Preview
+                                            </button>
                                             @if ($isBemOrDpm)
                                                 <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled" title="Unduh Format Proposal BEM">
                                                     Unduh Proposal
@@ -150,6 +153,9 @@
                                             @endif
                                         @endif
                                         @if ($submission->status === 'approved')
+                                            <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $submission->id) }}', '{{ route('documents.preview.signed-proposal', $submission->id) }}', 'Proposal Tertandatangani: {{ addslashes($submission->activity_name) }}', 'docx')" title="Lihat Pratinjau Bertanda Tangan">
+                                                <i class="bi bi-eye-fill"></i> Preview TTE
+                                            </button>
                                             <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadSignedProposal({{ $submission->id }})" wire:loading.attr="disabled">
                                                 Bertanda tangan
                                             </button>
@@ -209,6 +215,9 @@
                                 @php
                                     $isBemOrDpm = $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm());
                                 @endphp
+                                <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', 'docx')">
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
                                 @if ($isBemOrDpm)
                                     <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="downloadProposal({{ $submission->id }})" wire:loading.attr="disabled">Unduh Proposal</button>
                                     <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadNotaDinas({{ $submission->id }})" wire:loading.attr="disabled">Unduh Nota Dinas</button>
@@ -217,6 +226,9 @@
                                 @endif
                             @endif
                             @if ($status === 'approved')
+                                <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $submission->id) }}', '{{ route('documents.preview.signed-proposal', $submission->id) }}', 'Proposal Bertanda Tangan: {{ addslashes($submission->activity_name) }}', 'docx')">
+                                    <i class="bi bi-eye-fill"></i> Preview TTE
+                                </button>
                                 <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadSignedProposal({{ $submission->id }})" wire:loading.attr="disabled">Bertanda tangan</button>
                             @endif
                         </div>

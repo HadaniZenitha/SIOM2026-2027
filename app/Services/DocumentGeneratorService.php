@@ -340,15 +340,8 @@ class DocumentGeneratorService
             'total_amount_words' => $this->terbilang($totalAmount).' Rupiah',
         ]);
 
-        $processor->setComplexBlock(
-            'objectives',
-            $this->makeWordList($submission->objectives)
-        );
-
-        $processor->setComplexBlock(
-            'benefits',
-            $this->makeWordList($submission->benefits)
-        );
+        $this->replaceWithNumberedList($processor, 'objectives', $submission->objectives);
+        $this->replaceWithNumberedList($processor, 'benefits', $submission->benefits);
 
         /* 2. TIMELINE 4 TAHAP */
         $timelines = $submission->timelines;
@@ -368,27 +361,29 @@ class DocumentGeneratorService
             'closing_end'   => $closing?->end_date ? $closing->end_date->format('d/m/Y') : '-',
         ]);
 
-        $processor->setComplexBlock('plan_context',    $this->makeWordList($plan?->description));
-        $processor->setComplexBlock('prepare_context', $this->makeWordList($prepare?->description));
-        $processor->setComplexBlock('action_context',  $this->makeWordList($action?->description));
-        $processor->setComplexBlock('closing_context', $this->makeWordList($closing?->description));
+        $this->replaceWithTimelineContext($processor, 'plan_context', $plan?->description);
+        $this->replaceWithTimelineContext($processor, 'prepare_context', $prepare?->description);
+        $this->replaceWithTimelineContext($processor, 'action_context', $action?->description);
+        $this->replaceWithTimelineContext($processor, 'closing_context', $closing?->description);
 
         /* 3. TABEL DINAMIS RAB */
         if ($budgetItems->isNotEmpty()) {
             $rabRows  = [];
             $rab2Rows = [];
             foreach ($budgetItems as $index => $item) {
+                $qtyDisplay = $this->formatQuantity($item->qty, $item->unit);
+
                 $rabRows[] = [
                     'no'       => $index + 1,
                     'item_name' => $item->item_name ?? '-',
-                    'qty'      => $item->qty.' '.($item->unit ?? 'pcs'),
+                    'qty'      => $qtyDisplay,
                     'price'    => 'Rp '.number_format((float) $item->price, 0, ',', '.'),
                     'subtotal' => 'Rp '.number_format((float) $item->total_price, 0, ',', '.'),
                 ];
                 $rab2Rows[] = [
                     'rab2_no'        => $index + 1,
                     'rab2_item_name' => $item->item_name ?? '-',
-                    'rab2_qty'       => $item->qty.' '.($item->unit ?? 'pcs'),
+                    'rab2_qty'       => $qtyDisplay,
                     'rab2_price'     => 'Rp '.number_format((float) $item->price, 0, ',', '.'),
                     'rab2_subtotal'  => 'Rp '.number_format((float) $item->total_price, 0, ',', '.'),
                 ];
@@ -635,6 +630,132 @@ class DocumentGeneratorService
         return $run;
     }
 
+    /**
+     * Gantikan macro dokumen dengan baris daftar bernomor (1., 2., 3., dst.)
+     * Setiap item dijadikan elemen <w:p> mandiri dengan indentasi gantung (hanging indent),
+     * sehingga konsisten berjajar rapi ke bawah dan terformat sempurna baik di Word maupun web preview (docx-preview).
+     */
+    protected function replaceWithNumberedList(TemplateProcessor $processor, string $macro, ?array $items): void
+    {
+        $filtered = array_values(array_filter(
+            $items ?? [],
+            fn ($item) => trim((string) $item) !== ''
+        ));
+
+        if (empty($filtered)) {
+            $emptyXml = '<w:p w:rsidR="006E2067" w:rsidP="00AE2104">'
+                      . '<w:pPr>'
+                      . '<w:spacing w:after="0" w:line="360" w:lineRule="auto"/>'
+                      . '<w:ind w:left="709" w:hanging="425"/>'
+                      . '<w:jc w:val="both"/>'
+                      . '<w:rPr>'
+                      . '<w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                      . '<w:color w:val="000000"/>'
+                      . '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+                      . '</w:rPr>'
+                      . '</w:pPr>'
+                      . '<w:r>'
+                      . '<w:rPr>'
+                      . '<w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                      . '<w:color w:val="000000"/>'
+                      . '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+                      . '</w:rPr>'
+                      . '<w:t>-</w:t>'
+                      . '</w:r>'
+                      . '</w:p>';
+
+            $processor->replaceXmlBlock($macro, $emptyXml);
+
+            return;
+        }
+
+        $xml = '';
+        foreach ($filtered as $index => $item) {
+            $num = ($index + 1).'. ';
+            $text = trim((string) $item);
+            // Bersihkan jika user sudah mengetik penomoran di awal input
+            $cleanText = preg_replace('/^\d+[\.\)]\s*/', '', $text);
+            $displayText = $num.$cleanText;
+            $escaped = htmlspecialchars($displayText, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+            $xml .= '<w:p w:rsidR="006E2067" w:rsidP="00AE2104">'
+                  . '<w:pPr>'
+                  . '<w:pStyle w:val="ListParagraph"/>'
+                  . '<w:spacing w:after="60" w:line="360" w:lineRule="auto"/>'
+                  . '<w:ind w:left="709" w:hanging="425"/>'
+                  . '<w:jc w:val="both"/>'
+                  . '<w:rPr>'
+                  . '<w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                  . '<w:color w:val="000000"/>'
+                  . '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+                  . '</w:rPr>'
+                  . '</w:pPr>'
+                  . '<w:r>'
+                  . '<w:rPr>'
+                  . '<w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                  . '<w:color w:val="000000"/>'
+                  . '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+                  . '</w:rPr>'
+                  . '<w:t xml:space="preserve">'.$escaped.'</w:t>'
+                  . '</w:r>'
+                  . '</w:p>';
+        }
+
+        $processor->replaceXmlBlock($macro, $xml);
+    }
+
+    /**
+     * Gantikan macro konteks timeline (plan_context, dsb.) dengan format terindentasi rapi.
+     * Tidak keluar ke tepi kiri kolom 0, melainkan konsisten lurus sejajar di bawah teks tahap kegiatan.
+     */
+    protected function replaceWithTimelineContext(TemplateProcessor $processor, string $macro, ?array $items): void
+    {
+        $filtered = array_values(array_filter(
+            $items ?? [],
+            fn ($item) => trim((string) $item) !== ''
+        ));
+
+        if (empty($filtered)) {
+            $processor->replaceXmlBlock($macro, '');
+
+            return;
+        }
+
+        $xml = '';
+        $multiple = count($filtered) > 1;
+
+        foreach ($filtered as $index => $item) {
+            $text = trim((string) $item);
+            $cleanText = preg_replace('/^[-•*]\s*|^\d+[\.\)]\s*/', '', $text);
+            $displayText = $multiple ? '- '.$cleanText : $cleanText;
+            $escaped = htmlspecialchars($displayText, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+            $xml .= '<w:p w:rsidR="006E2067" w:rsidP="00AE2104">'
+                  . '<w:pPr>'
+                  . '<w:pStyle w:val="ListParagraph"/>'
+                  . '<w:spacing w:after="60" w:line="360" w:lineRule="auto"/>'
+                  . '<w:ind w:left="992" w:hanging="283"/>'
+                  . '<w:jc w:val="both"/>'
+                  . '<w:rPr>'
+                  . '<w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                  . '<w:color w:val="000000"/>'
+                  . '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+                  . '</w:rPr>'
+                  . '</w:pPr>'
+                  . '<w:r>'
+                  . '<w:rPr>'
+                  . '<w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                  . '<w:color w:val="000000"/>'
+                  . '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+                  . '</w:rPr>'
+                  . '<w:t xml:space="preserve">'.$escaped.'</w:t>'
+                  . '</w:r>'
+                  . '</w:p>';
+        }
+
+        $processor->replaceXmlBlock($macro, $xml);
+    }
+
     protected function createTemplateProcessor(string $documentPath): TemplateProcessor
     {
         $previousHandler = set_error_handler(function ($errno, $errstr) use (&$previousHandler) {
@@ -659,5 +780,25 @@ class DocumentGeneratorService
         } catch (\Throwable $e) {
             // Variable is not in template or format does not support row clone
         }
+    }
+
+    /**
+     * Format kuantitas tanpa .00 di belakang jika bilangan bulat (contoh: 5.00 -> 5).
+     * Disertai satuan jika ada (contoh: 5 pcs, 50 kotak).
+     */
+    protected function formatQuantity(mixed $qty, ?string $unit = null): string
+    {
+        if ($qty === null || $qty === '') {
+            $formattedQty = '0';
+        } else {
+            $qtyNumber = (float) $qty;
+            $formattedQty = ($qtyNumber == (int) $qtyNumber)
+                ? (string) (int) $qtyNumber
+                : rtrim(rtrim(number_format($qtyNumber, 4, '.', ''), '0'), '.');
+        }
+
+        $unitStr = trim((string) ($unit ?? ''));
+
+        return $unitStr !== '' ? "{$formattedQty} {$unitStr}" : $formattedQty;
     }
 }

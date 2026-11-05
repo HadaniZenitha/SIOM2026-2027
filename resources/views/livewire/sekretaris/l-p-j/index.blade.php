@@ -111,11 +111,17 @@
                             <td>{{ $lpj->documents->count() }}</td>
                             <td>
                                 <div class="siom-admin-actions">
+                                    <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.lpj.file', $lpj->id) }}', '{{ route('documents.preview.lpj', $lpj->id) }}', 'LPJ: {{ addslashes($lpj->title) }}', 'docx')" title="Lihat Pratinjau LPJ">
+                                        <i class="bi bi-eye"></i> Preview
+                                    </button>
                                     @if (in_array($lpj->status, ['draft', 'revision'], true))
                                         <a class="siom-admin-btn siom-admin-btn-sm" href="{{ route('sekretaris.lpj.edit', $lpj) }}">Edit</a>
                                         <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="submit({{ $lpj->id }})" wire:confirm="Kirim LPJ untuk persetujuan?">Kirim</button>
                                         <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-danger" wire:click="delete({{ $lpj->id }})" wire:confirm="Hapus LPJ ini?">Hapus</button>
                                     @elseif ($lpj->status === 'approved')
+                                        <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="window.openDocPreview('{{ route('documents.preview.signed-lpj.file', $lpj->id) }}', '{{ route('documents.preview.signed-lpj', $lpj->id) }}', 'LPJ Bertanda Tangan: {{ addslashes($lpj->title) }}', 'docx')" title="Lihat Pratinjau Bertanda Tangan">
+                                            <i class="bi bi-eye-fill"></i> Preview TTE
+                                        </button>
                                         <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadSigned({{ $lpj->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
                                     @endif
                                 </div>
@@ -144,11 +150,17 @@
                         @endforeach
                     </div>
                     <div class="siom-admin-actions">
+                        <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.lpj.file', $lpj->id) }}', '{{ route('documents.preview.lpj', $lpj->id) }}', 'LPJ: {{ addslashes($lpj->title) }}', 'docx')">
+                            <i class="bi bi-eye"></i> Preview
+                        </button>
                         @if (in_array($lpj->status, ['draft', 'revision'], true))
                             <a class="siom-admin-btn siom-admin-btn-sm" href="{{ route('sekretaris.lpj.edit', $lpj) }}">Edit</a>
                             <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-primary" wire:click="submit({{ $lpj->id }})" wire:confirm="Kirim LPJ untuk persetujuan?">Kirim</button>
                             <button type="button" class="siom-admin-btn siom-admin-btn-sm siom-admin-btn-danger" wire:click="delete({{ $lpj->id }})" wire:confirm="Hapus LPJ ini?">Hapus</button>
                         @elseif ($lpj->status === 'approved')
+                            <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="window.openDocPreview('{{ route('documents.preview.signed-lpj.file', $lpj->id) }}', '{{ route('documents.preview.signed-lpj', $lpj->id) }}', 'LPJ Bertanda Tangan: {{ addslashes($lpj->title) }}', 'docx')">
+                                <i class="bi bi-eye-fill"></i> Preview TTE
+                            </button>
                             <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="downloadSigned({{ $lpj->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
                         @endif
                     </div>

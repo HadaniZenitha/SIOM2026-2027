@@ -375,7 +375,12 @@
                                     <strong>{{ $proposal->activity_name }}</strong>
                                     <small>{{ $proposal->ormawa?->name }} · {{ $proposal->period?->name }}</small>
                                 </div>
-                                <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $proposal->id) }}', '{{ route('documents.preview.signed-proposal', $proposal->id) }}', 'Proposal: {{ addslashes($proposal->activity_name) }}', 'docx')">
+                                        <i class="bi bi-eye"></i> Preview
+                                    </button>
+                                    <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                </div>
                             </div>
                             <div class="siom-step-cols">
                                 @foreach ($proposal->approvalSteps as $step)
@@ -453,7 +458,12 @@
                                     <strong>{{ $lpj->title }}</strong>
                                     <small>{{ $lpj->submission?->activity_name }} · {{ $lpj->ormawa?->name }}</small>
                                 </div>
-                                <button type="button" class="btn" wire:click="downloadSignedLpj({{ $lpj->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.openDocPreview('{{ route('documents.preview.signed-lpj.file', $lpj->id) }}', '{{ route('documents.preview.signed-lpj', $lpj->id) }}', 'LPJ: {{ addslashes($lpj->title) }}', 'docx')">
+                                        <i class="bi bi-eye"></i> Preview
+                                    </button>
+                                    <button type="button" class="btn" wire:click="downloadSignedLpj({{ $lpj->id }})" wire:loading.attr="disabled">Unduh DOCX</button>
+                                </div>
                             </div>
                             <div class="siom-step-cols">
                                 @foreach ($lpj->approvalSteps as $step)
@@ -495,7 +505,12 @@
                                 </div>
                                 <span class="siom-track-status">{{ ucfirst(str_replace('_', ' ', $proposalStatus)) }}</span>
                                 @if ($proposalStatus === 'approved')
-                                    <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})">Unduh DOCX</button>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.openDocPreview('{{ route('documents.preview.signed-proposal.file', $proposal->id) }}', '{{ route('documents.preview.signed-proposal', $proposal->id) }}', 'Proposal: {{ addslashes($proposal->activity_name) }}', 'docx')">
+                                            <i class="bi bi-eye"></i> Preview
+                                        </button>
+                                        <button type="button" class="btn" wire:click="downloadSignedProposal({{ $proposal->id }})">Unduh DOCX</button>
+                                    </div>
                                 @endif
                             </div>
                             <div class="siom-step-cols">
