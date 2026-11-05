@@ -4,6 +4,7 @@ namespace App\Livewire\Sekretaris\Pengajuan;
 
 use App\Models\Document;
 use App\Models\OrganizationDivision;
+use App\Models\OrganizationMember;
 use App\Models\Ormawa;
 use App\Models\Period;
 use App\Models\Submission;
@@ -58,6 +59,12 @@ class Create extends Component
     public bool $showDivisionModal = false;
 
     public string $new_division_name = '';
+
+    public ?int $activeCommitteeIndexForNewDivision = null;
+
+    public array $manualCommitteeRoles = [];
+
+    public array $manualCommitteeNames = [];
 
     public ?string $meeting_date = null;
 
@@ -334,7 +341,102 @@ class Create extends Component
         if (count($this->committees) > 1) {
             unset($this->committees[$index]);
             $this->committees = array_values($this->committees);
+
+            $newManual = [];
+            foreach ($this->manualCommitteeRoles as $idx => $val) {
+                if ($idx < $index) {
+                    $newManual[$idx] = $val;
+                } elseif ($idx > $index) {
+                    $newManual[$idx - 1] = $val;
+                }
+            }
+            $this->manualCommitteeRoles = $newManual;
+
+            $newManualNames = [];
+            foreach ($this->manualCommitteeNames as $idx => $val) {
+                if ($idx < $index) {
+                    $newManualNames[$idx] = $val;
+                } elseif ($idx > $index) {
+                    $newManualNames[$idx - 1] = $val;
+                }
+            }
+            $this->manualCommitteeNames = $newManualNames;
         }
+    }
+
+    public function onCommitteeRoleChanged(int $index, string $value): void
+    {
+        if ($value === '__create_new__') {
+            $this->committees[$index]['committee_role'] = '';
+            $this->openDivisionModal($index);
+        } elseif ($value === '__manual__') {
+            $this->committees[$index]['committee_role'] = '';
+            $this->manualCommitteeRoles[$index] = true;
+        } else {
+            $this->committees[$index]['committee_role'] = $value;
+        }
+    }
+
+    public function toggleManualRole(int $index): void
+    {
+        if (! empty($this->manualCommitteeRoles[$index])) {
+            unset($this->manualCommitteeRoles[$index]);
+        } else {
+            $this->manualCommitteeRoles[$index] = true;
+        }
+    }
+
+    public function selectMemberForCommittee(int $index, mixed $memberId): void
+    {
+        if ($memberId === '__manual__' || $memberId === 'manual' || $memberId === '0') {
+            $this->manualCommitteeNames[$index] = true;
+            $this->committees[$index]['name'] = '';
+
+            return;
+        }
+
+        if ($memberId === '' || $memberId === null) {
+            $this->committees[$index]['name'] = '';
+
+            return;
+        }
+
+        $member = OrganizationMember::with('division')->find((int) $memberId);
+        if ($member && isset($this->committees[$index])) {
+            $this->committees[$index]['name'] = $member->name;
+            if (empty($this->committees[$index]['structural_role'])) {
+                $this->committees[$index]['structural_role'] = 'Mahasiswa';
+            }
+            if (empty($this->committees[$index]['committee_role']) && $member->division?->name) {
+                $this->committees[$index]['committee_role'] = $member->division->name;
+            }
+            unset($this->manualCommitteeNames[$index]);
+        }
+    }
+
+    public function toggleManualName(int $index): void
+    {
+        if (! empty($this->manualCommitteeNames[$index])) {
+            unset($this->manualCommitteeNames[$index]);
+            $this->committees[$index]['name'] = '';
+        } else {
+            $this->manualCommitteeNames[$index] = true;
+        }
+    }
+
+    public function selectDivisionForCommittee(string $name): void
+    {
+        if ($this->activeCommitteeIndexForNewDivision !== null && isset($this->committees[$this->activeCommitteeIndexForNewDivision])) {
+            $this->committees[$this->activeCommitteeIndexForNewDivision]['committee_role'] = $name;
+        } else {
+            foreach ($this->committees as $idx => $comm) {
+                if (empty($comm['committee_role'])) {
+                    $this->committees[$idx]['committee_role'] = $name;
+                    break;
+                }
+            }
+        }
+        $this->closeDivisionModal();
     }
 
     public function addRundown(): void
@@ -781,6 +883,10 @@ class Create extends Component
                 'description' => $committee->description,
             ])
             ->all();
+        // Saat memuat data revisi, semua nama panitia ditandai manual (tidak dari dropdown member)
+        foreach ($this->committees as $idx => $_) {
+            $this->manualCommitteeNames[$idx] = true;
+        }
         $this->rundowns = $submission->rundowns
             ->map(fn (SubmissionRundown $rundown): array => [
                 'day_date' => $rundown->day_date ?? '',
@@ -821,18 +927,11 @@ class Create extends Component
         ];
     }
 
-    public function updatedDivisiName(string $value): void
-    {
-        if ($value === '__create_new__') {
-            $this->divisi_name = '';
-            $this->openDivisionModal();
-        }
-    }
-
-    public function openDivisionModal(): void
+    public function openDivisionModal(?int $committeeIndex = null): void
     {
         $this->resetValidation('new_division_name');
         $this->new_division_name = '';
+        $this->activeCommitteeIndexForNewDivision = $committeeIndex;
         $this->showDivisionModal = true;
     }
 
@@ -840,6 +939,7 @@ class Create extends Component
     {
         $this->resetValidation('new_division_name');
         $this->new_division_name = '';
+        $this->activeCommitteeIndexForNewDivision = null;
         $this->showDivisionModal = false;
     }
 
@@ -870,10 +970,14 @@ class Create extends Component
             'name' => $this->new_division_name,
         ]);
 
-        $this->divisi_name = $division->name;
+        if ($this->activeCommitteeIndexForNewDivision !== null && isset($this->committees[$this->activeCommitteeIndexForNewDivision])) {
+            $this->committees[$this->activeCommitteeIndexForNewDivision]['committee_role'] = $division->name;
+        }
+
+        $createdName = $division->name;
         $this->closeDivisionModal();
 
-        session()->flash('division_success', 'Divisi "'.$division->name.'" berhasil dibuat dan dipilih.');
+        session()->flash('division_success', 'Divisi "'.$createdName.'" berhasil ditambahkan.');
     }
 
     public function deleteDivision(int $divisionId): void
@@ -893,8 +997,10 @@ class Create extends Component
         $deletedName = $division->name;
         $division->delete();
 
-        if ($this->divisi_name === $deletedName) {
-            $this->divisi_name = '';
+        foreach ($this->committees as $k => $c) {
+            if (($c['committee_role'] ?? '') === $deletedName) {
+                $this->committees[$k]['committee_role'] = '';
+            }
         }
 
         session()->flash('division_success', 'Divisi "'.$deletedName.'" berhasil dihapus.');
@@ -906,8 +1012,19 @@ class Create extends Component
             ? $this->ormawa->divisions()->orderBy('name')->get()
             : collect();
 
+        $ormawaMembersForDropdown = ($this->ormawa && $this->period)
+            ? OrganizationMember::query()
+                ->where('ormawa_id', $this->ormawa->id)
+                ->where('period_id', $this->period->id)
+                ->where('status', 'active')
+                ->with('division:id,name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'nim', 'position', 'organization_division_id'])
+            : collect();
+
         return view('livewire.sekretaris.pengajuan.create', [
             'divisions' => $divisions,
+            'ormawaMembersForDropdown' => $ormawaMembersForDropdown,
         ]);
     }
 }

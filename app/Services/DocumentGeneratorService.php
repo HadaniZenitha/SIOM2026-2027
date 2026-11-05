@@ -309,12 +309,17 @@ class DocumentGeneratorService
             .' - '
             .($submission->event_end_time ? $submission->event_end_time->format('H:i') : 'Selesai').' WIB';
 
+        $ormawaRawName = $submission->ormawa?->name ?? '-';
+        $ormawaUpperName = mb_strtoupper($ormawaRawName);
+
         $processor->setValues([
             'nomor_nota'         => $submission->nota_number ?? '-',
             'activity_name'      => $submission->activity_name ?? '-',
             'activity_theme'     => $submission->activity_theme ?? '-',
             'divisi_name'        => $submission->divisi_name ?? '-',
-            'ormawa_name'        => $submission->ormawa?->name ?? '-',
+            'ormawa_name'        => $ormawaUpperName,
+            'ormawa_name_upper'  => $ormawaUpperName,
+            'ORMAWA_NAME'        => $ormawaUpperName,
             'prodi_name'         => ($ormawa && ($ormawa->isUkm() || $ormawa->isBem() || $ormawa->isDpm())) ? 'Unit Kegiatan Mahasiswa' : ($submission->submitter?->programStudi?->name ?? $ormawa?->programStudi?->name ?? '-'),
             'period_name'        => $submission->period?->name ?? '-',
             'year'               => $submission->period?->start_date ? $submission->period->start_date->format('Y') : now()->format('Y'),

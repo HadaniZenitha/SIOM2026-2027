@@ -144,9 +144,11 @@
                     @if ($submission->objectives && count($submission->objectives) > 0)
                         <div class="siom-sheet-section">
                             <h5>C. TUJUAN KEGIATAN</h5>
-                            <ol style="padding-left: 20px; line-height: 1.8;">
+                            <ol style="padding-left: 20px; line-height: 1.8; list-style: decimal; margin: 0;">
                                 @foreach ($submission->objectives as $obj)
-                                    <li>{{ preg_replace('/^\d+[\.\)]\s*/', '', $obj) }}</li>
+                                    @if (trim($obj) !== '')
+                                        <li style="margin-bottom: 4px;">{{ preg_replace('/^\d+[\.\)]\s*/', '', $obj) }}</li>
+                                    @endif
                                 @endforeach
                             </ol>
                         </div>
@@ -155,9 +157,11 @@
                     @if ($submission->benefits && count($submission->benefits) > 0)
                         <div class="siom-sheet-section">
                             <h5>D. MANFAAT KEGIATAN</h5>
-                            <ol style="padding-left: 20px; line-height: 1.8;">
+                            <ol style="padding-left: 20px; line-height: 1.8; list-style: decimal; margin: 0;">
                                 @foreach ($submission->benefits as $ben)
-                                    <li>{{ preg_replace('/^\d+[\.\)]\s*/', '', $ben) }}</li>
+                                    @if (trim($ben) !== '')
+                                        <li style="margin-bottom: 4px;">{{ preg_replace('/^\d+[\.\)]\s*/', '', $ben) }}</li>
+                                    @endif
                                 @endforeach
                             </ol>
                         </div>
@@ -199,7 +203,7 @@
                     @if ($submission->timelines && $submission->timelines->isNotEmpty())
                         <div class="siom-sheet-section">
                             <h5>G. PERSIAPAN RENCANA KEGIATAN</h5>
-                            <ol style="padding-left: 20px; line-height: 1.8;">
+                            <ol style="padding-left: 20px; line-height: 1.8; counter-reset: list-counter; list-style: decimal;" start="1">
                                 @php
                                     $stages = [
                                         'perencanaan' => 'Perencanaan',

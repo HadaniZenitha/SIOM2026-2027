@@ -427,6 +427,64 @@
             .siom-proposal .d-flex.justify-content-end .btn,
             .siom-proposal .d-flex.justify-content-between.mt-5 .btn { width: 100%; }
         }
+
+        /* Modal Kelola Divisi (Selaras dengan Tema SIOM) */
+        .siom-proposal .siom-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            display: grid;
+            place-items: center;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(15, 23, 42, .68);
+            backdrop-filter: blur(4px);
+        }
+
+        .siom-proposal .siom-modal-card {
+            width: min(100%, 640px);
+            margin: auto;
+            overflow: hidden;
+            border: var(--proposal-border);
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 7px 7px 0 var(--proposal-ink);
+            color: var(--proposal-ink);
+        }
+
+        .siom-proposal .siom-modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.15rem 1.4rem;
+            border-bottom: 2px solid #e2e8f0;
+            background: #fff;
+        }
+
+        .siom-proposal .siom-modal-head h4 {
+            margin: 0;
+            font-family: Fredoka, 'Plus Jakarta Sans', sans-serif;
+            font-size: 1.2rem;
+            color: var(--proposal-ink);
+        }
+
+        .siom-proposal .siom-modal-body {
+            max-height: min(72vh, 650px);
+            overflow-y: auto;
+            padding: 1.4rem;
+            background: #fff;
+        }
+
+        .siom-proposal .siom-modal-foot {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: .75rem;
+            padding: 1rem 1.4rem;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
     </style>
 
     <div class="container py-4">
@@ -578,37 +636,13 @@
                                 <input type="text" class="form-control" wire:model="activity_theme" placeholder="Tema/sub-judul kegiatan">
                             </div>
                             <div class="col-md-4">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="form-label fw-semibold mb-0">Divisi Penyelenggara</label>
-                                    <button type="button" class="btn btn-link p-0 text-primary small text-decoration-none" wire:click="openDivisionModal" style="font-size: 0.78rem;" title="Kelola / Tambah Divisi">
-                                        <i class="bi bi-gear-fill"></i> Kelola Divisi
-                                    </button>
-                                </div>
-                                <div class="input-group">
-                                    <select class="form-select @error('divisi_name') is-invalid @enderror" wire:model.live="divisi_name">
-                                        <option value="">-- Pilih Divisi Penyelenggara --</option>
-                                        @foreach ($divisions as $div)
-                                            <option value="{{ $div->name }}">{{ $div->name }}</option>
-                                        @endforeach
-                                        @if ($divisi_name && ! $divisions->pluck('name')->contains($divisi_name))
-                                            <option value="{{ $divisi_name }}">{{ $divisi_name }} (Kustom)</option>
-                                        @endif
-                                        <option value="__create_new__" class="fw-semibold text-primary">+ Tambah Divisi Baru...</option>
-                                    </select>
-                                    <button type="button" class="btn btn-outline-primary" wire:click="openDivisionModal" title="Buat Divisi Baru">
-                                        <i class="bi bi-plus-circle"></i>
-                                    </button>
-                                </div>
+                                <label class="form-label fw-semibold">Divisi Penyelenggara</label>
+                                <input type="text" class="form-control @error('divisi_name') is-invalid @enderror" wire:model="divisi_name" placeholder="Contoh: Divisi Kominfo">
                                 @error('divisi_name')
                                     <small class="text-danger d-block mt-1">{{ $message }}</small>
                                 @enderror
-                                @if (session()->has('division_success'))
-                                    <small class="text-success d-block mt-1">
-                                        <i class="bi bi-check-circle-fill"></i> {{ session('division_success') }}
-                                    </small>
-                                @endif
                                 <small class="text-muted d-block mt-1" style="font-size: 0.78rem;">
-                                    Pilih divisi ORMAWA yang menyelenggarakan kegiatan.
+                                    Divisi penyelenggara untuk lampiran Nota Dinas.
                                 </small>
                             </div>
                             <div class="col-md-4">
@@ -706,17 +740,151 @@
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold mb-0">Susunan Kepanitiaan</h6>
-                            <button type="button" class="btn btn-sm btn-primary" wire:click="addCommittee">+ Tambah Panitia</button>
+                            <div>
+                                <h6 class="fw-bold mb-0">Susunan Kepanitiaan</h6>
+                                <small class="text-muted">Tentukan struktur panitia inti serta divisi kepanitiaan kegiatan.</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openDivisionModal()">
+                                    <i class="bi bi-diagram-3-fill"></i> Kelola / Tambah Divisi
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary" wire:click="addCommittee">+ Tambah Panitia</button>
+                            </div>
                         </div>
+
+                        @if (session()->has('division_success'))
+                            <div class="alert alert-success alert-dismissible fade show py-2 px-3 small mb-3" role="alert">
+                                <i class="bi bi-check-circle-fill me-1"></i> {{ session('division_success') }}
+                                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+
                         <div class="siom-sheet-wrap mb-4">
                             @foreach ($committees as $index => $committee)
-                                <div class="row g-2 mb-2 siom-sheet" wire:key="committee-item-{{ $index }}">
-                                    <div class="col-md-3"><label class="form-label small">Nama Panitia</label><input type="text" class="form-control" placeholder="Nama lengkap" wire:model="committees.{{ $index }}.name">@error('committees.'.$index.'.name') <small class="text-danger">{{ $message }}</small> @enderror</div>
-                                    <div class="col-md-2"><label class="form-label small">Status Struktural</label><input type="text" class="form-control" placeholder="Mahasiswa" wire:model="committees.{{ $index }}.structural_role"></div>
-                                    <div class="col-md-3"><label class="form-label small">Jabatan Panitia</label><input type="text" class="form-control" placeholder="Ketua Pelaksana" wire:model="committees.{{ $index }}.committee_role"></div>
-                                    <div class="col-md-3"><label class="form-label small">Keterangan</label><input type="text" class="form-control" placeholder="Keterangan" wire:model="committees.{{ $index }}.description"></div>
-                                    <div class="col-md-1"><label class="form-label small d-none d-md-block">&nbsp;</label><button type="button" class="btn btn-outline-danger w-100" wire:click="removeCommittee({{ $index }})">✕</button></div>
+                                <div class="row g-2 mb-2 siom-sheet align-items-start" wire:key="committee-item-{{ $index }}">
+                                    <div class="col-md-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label small mb-0">Nama Panitia <span class="text-danger">*</span></label>
+                                            @if (!empty($manualCommitteeNames[$index]))
+                                                <button type="button" class="btn btn-link p-0 text-primary small text-decoration-none" wire:click="toggleManualName({{ $index }})" style="font-size: 0.72rem;">
+                                                    <i class="bi bi-list-ul"></i> Pilih Anggota
+                                                </button>
+                                            @else
+                                                <button type="button" class="btn btn-link p-0 text-muted small text-decoration-none" wire:click="toggleManualName({{ $index }})" style="font-size: 0.72rem;">
+                                                    <i class="bi bi-pencil"></i> Ketik Manual
+                                                </button>
+                                            @endif
+                                        </div>
+                                        @if (!empty($manualCommitteeNames[$index]))
+                                            <input type="text"
+                                                   class="form-control @error('committees.'.$index.'.name') is-invalid @enderror"
+                                                   placeholder="Nama lengkap (manual)"
+                                                   wire:model="committees.{{ $index }}.name">
+                                        @else
+                                            @if ($ormawaMembersForDropdown->isEmpty())
+                                                <div class="alert alert-warning p-2 mb-1 small">
+                                                    <i class="bi bi-exclamation-circle"></i> Belum ada anggota aktif.
+                                                    <button type="button" class="btn btn-link p-0 text-warning text-decoration-underline small" wire:click="toggleManualName({{ $index }})">Ketik manual</button>
+                                                </div>
+                                            @else
+                                                <select class="form-select @error('committees.'.$index.'.name') is-invalid @enderror"
+                                                        wire:change="selectMemberForCommittee({{ $index }}, $event.target.value)">
+                                                    <option value="">-- Pilih Anggota ORMAWA --</option>
+                                                    @foreach ($ormawaMembersForDropdown as $member)
+                                                        <option value="{{ $member->id }}"
+                                                            {{ ($committees[$index]['name'] ?? '') === $member->name ? 'selected' : '' }}>
+                                                            {{ $member->name }}{{ $member->nim ? ' ('.$member->nim.')' : '' }}{{ $member->division ? ' • '.$member->division->name : '' }}
+                                                        </option>
+                                                    @endforeach
+                                                    <option value="" disabled>──────────────</option>
+                                                    <option value="__manual__">✎ Ketik Nama Manual...</option>
+                                                </select>
+                                                @if (!empty($committees[$index]['name']))
+                                                    <small class="text-success d-block mt-1" style="font-size: 0.78rem;">
+                                                        <i class="bi bi-person-check-fill"></i> {{ $committees[$index]['name'] }}
+                                                    </small>
+                                                @endif
+                                            @endif
+                                        @endif
+                                        @error('committees.'.$index.'.name') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small">Status Struktural</label>
+                                        <input type="text" class="form-control" placeholder="Contoh: Mahasiswa" wire:model="committees.{{ $index }}.structural_role">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label small mb-0">Jabatan / Divisi Panitia <span class="text-danger">*</span></label>
+                                            @if (!empty($manualCommitteeRoles[$index]))
+                                                <button type="button" class="btn btn-link p-0 text-primary small text-decoration-none" wire:click="toggleManualRole({{ $index }})" style="font-size: 0.72rem;">
+                                                    <i class="bi bi-list-ul"></i> Dropdown
+                                                </button>
+                                            @else
+                                                <button type="button" class="btn btn-link p-0 text-muted small text-decoration-none" wire:click="toggleManualRole({{ $index }})" style="font-size: 0.72rem;">
+                                                    <i class="bi bi-pencil"></i> Ketik Manual
+                                                </button>
+                                            @endif
+                                        </div>
+
+                                        @if (!empty($manualCommitteeRoles[$index]))
+                                            <div class="input-group">
+                                                <input type="text"
+                                                       class="form-control @error('committees.'.$index.'.committee_role') is-invalid @enderror"
+                                                       placeholder="Contoh: Sie Konsumsi / Divisi Acara"
+                                                       wire:model="committees.{{ $index }}.committee_role">
+                                                <button type="button" class="btn btn-outline-secondary" wire:click="toggleManualRole({{ $index }})" title="Kembali ke Dropdown">
+                                                    <i class="bi bi-list-ul"></i>
+                                                </button>
+                                            </div>
+                                        @else
+                                            <div class="input-group">
+                                                <select class="form-select @error('committees.'.$index.'.committee_role') is-invalid @enderror"
+                                                        wire:model="committees.{{ $index }}.committee_role"
+                                                        wire:change="onCommitteeRoleChanged({{ $index }}, $event.target.value)">
+                                                    <option value="">-- Pilih Jabatan / Divisi --</option>
+                                                    <optgroup label="Panitia Inti / BPH">
+                                                        <option value="Ketua Pelaksana">Ketua Pelaksana</option>
+                                                        <option value="Wakil Ketua Pelaksana">Wakil Ketua Pelaksana</option>
+                                                        <option value="Sekretaris">Sekretaris</option>
+                                                        <option value="Bendahara">Bendahara</option>
+                                                        <option value="Koordinator Lapangan">Koordinator Lapangan</option>
+                                                        <option value="Anggota">Anggota</option>
+                                                    </optgroup>
+                                                    @if ($divisions->isNotEmpty())
+                                                        <optgroup label="Divisi ORMAWA ({{ $ormawa->name ?? 'ORMAWA' }})">
+                                                            @foreach ($divisions as $div)
+                                                                <option value="{{ $div->name }}">{{ $div->name }}</option>
+                                                            @endforeach
+                                                        </optgroup>
+                                                    @endif
+                                                    @if (!empty($committee['committee_role'])
+                                                        && !in_array($committee['committee_role'], ['Ketua Pelaksana', 'Wakil Ketua Pelaksana', 'Sekretaris', 'Bendahara', 'Koordinator Lapangan', 'Anggota'])
+                                                        && !$divisions->pluck('name')->contains($committee['committee_role']))
+                                                        <optgroup label="Pilihan Lain / Kustom">
+                                                            <option value="{{ $committee['committee_role'] }}">{{ $committee['committee_role'] }}</option>
+                                                        </optgroup>
+                                                    @endif
+                                                    <optgroup label="Aksi">
+                                                        <option value="__create_new__" class="fw-semibold text-primary">+ Tambah Divisi Baru...</option>
+                                                        <option value="__manual__">✎ Ketik Manual Lainnya...</option>
+                                                    </optgroup>
+                                                </select>
+                                                <button type="button" class="btn btn-outline-primary" wire:click="openDivisionModal({{ $index }})" title="Kelola / Tambah Divisi">
+                                                    <i class="bi bi-plus-circle"></i>
+                                                </button>
+                                            </div>
+                                        @endif
+                                        @error('committees.'.$index.'.committee_role') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Keterangan</label>
+                                        <input type="text" class="form-control" placeholder="Keterangan" wire:model="committees.{{ $index }}.description">
+                                        @error('committees.'.$index.'.description') <small class="text-danger">{{ $message }}</small> @enderror
+                                    </div>
+                                    <div class="col-md-1">
+                                        <label class="form-label small d-none d-md-block">&nbsp;</label>
+                                        <button type="button" class="btn btn-outline-danger w-100" wire:click="removeCommittee({{ $index }})" title="Hapus Panitia">✕</button>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -805,89 +973,144 @@
         @endif
     </div>
 
-    <!-- Modal Tambah / Kelola Divisi ORMAWA -->
+    <!-- Modal Tambah / Kelola Divisi ORMAWA (Selaras dengan Tema SIOM) -->
     @if ($showDivisionModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px);" role="dialog">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                    <div class="modal-header bg-primary text-white py-3">
-                        <h6 class="modal-title fw-bold d-flex align-items-center gap-2 mb-0">
-                            <i class="bi bi-diagram-3-fill"></i> Kelola Divisi: {{ $ormawa?->name ?? 'ORMAWA' }}
-                        </h6>
-                        <button type="button" class="btn-close btn-close-white" wire:click="closeDivisionModal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <p class="small text-muted mb-3">
-                            Tambahkan divisi baru untuk ORMAWA Anda. Divisi yang dibuat akan otomatis muncul di pilihan dropdown formulir dan tersimpan untuk pengajuan berikutnya.
-                        </p>
-
-                        <form wire:submit="saveDivision">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Nama Divisi Baru <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="text"
-                                           class="form-control @error('new_division_name') is-invalid @enderror"
-                                           wire:model="new_division_name"
-                                           placeholder="Contoh: Divisi Kominfo, BPH, PSDM..."
-                                           autofocus>
-                                    <button type="submit" class="btn btn-primary d-flex align-items-center gap-1" wire:loading.attr="disabled">
-                                        <i class="bi bi-plus-lg"></i> Simpan
-                                    </button>
-                                </div>
-                                @error('new_division_name')
-                                    <small class="text-danger d-block mt-1">{{ $message }}</small>
-                                @enderror
-                            </div>
-                        </form>
-
-                        <!-- Daftar Divisi yang Sudah Ada -->
-                        <div class="mt-4 pt-3 border-top">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label class="form-label small fw-bold text-uppercase text-muted mb-0">
-                                    Daftar Divisi ORMAWA Ini ({{ $divisions->count() }})
-                                </label>
-                            </div>
-                            @if ($divisions->isEmpty())
-                                <div class="p-3 bg-light rounded text-center small text-muted">
-                                    Belum ada divisi tersimpan. Silakan masukkan nama divisi baru di atas.
-                                </div>
-                            @else
-                                <div class="list-group list-group-flush border rounded-3 overflow-hidden" style="max-height: 220px; overflow-y: auto;">
-                                    @foreach ($divisions as $item)
-                                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <i class="bi bi-tag text-primary"></i>
-                                                <span class="fw-semibold">{{ $item->name }}</span>
-                                                @if ($divisi_name === $item->name)
-                                                    <span class="badge bg-success-subtle text-success small">Terpilih</span>
-                                                @endif
-                                            </div>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-primary py-0 px-2"
-                                                        wire:click="$set('divisi_name', '{{ addslashes($item->name) }}'); closeDivisionModal()"
-                                                        title="Pilih divisi ini untuk form">
-                                                    Pilih
-                                                </button>
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-danger py-0 px-2"
-                                                        wire:click="deleteDivision({{ $item->id }})"
-                                                        wire:confirm="Yakin ingin menghapus divisi '{{ $item->name }}'?"
-                                                        title="Hapus divisi">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
+        <div class="siom-modal-backdrop"
+             wire:click.self="closeDivisionModal"
+             @keydown.escape.window="$wire.closeDivisionModal()"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="division-modal-title">
+            <div class="siom-modal-card" @click.stop>
+                <div class="siom-modal-head">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem; border-radius: 12px; background: #e0f2fe; color: #2563eb; border: 2px solid var(--proposal-ink); box-shadow: 2px 2px 0 var(--proposal-ink);">
+                            <i class="bi bi-diagram-3-fill fs-5"></i>
+                        </span>
+                        <div>
+                            <h4 id="division-modal-title" class="fw-bold mb-0">
+                                Kelola Divisi ORMAWA
+                            </h4>
+                            <small class="text-muted" style="font-size: 0.82rem;">
+                                {{ $ormawa?->name ?? 'ORMAWA' }}
+                            </small>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light py-2 px-4">
-                        <button type="button" class="btn btn-secondary btn-sm" wire:click="closeDivisionModal">
-                            Tutup
-                        </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            style="width: 2.25rem; height: 2.25rem; min-height: unset; padding: 0; border-radius: 50%; font-size: 1.1rem; display: inline-flex; align-items: center; justify-content: center;"
+                            wire:click="closeDivisionModal"
+                            aria-label="Tutup modal">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="siom-modal-body">
+                    @if ($activeCommitteeIndexForNewDivision !== null && isset($committees[$activeCommitteeIndexForNewDivision]))
+                        <div class="p-3 mb-3 d-flex align-items-center gap-2" style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-left: 5px solid #2563eb; border-radius: 12px; box-shadow: 2px 2px 0 rgba(15, 23, 42, 0.08);">
+                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                            <div class="small">
+                                Menetapkan divisi untuk <strong>Panitia Baris ke-{{ $activeCommitteeIndexForNewDivision + 1 }}</strong>:
+                                <span class="fw-semibold text-primary">{{ !empty($committees[$activeCommitteeIndexForNewDivision]['name']) ? $committees[$activeCommitteeIndexForNewDivision]['name'] : '(Nama belum diisi)' }}</span>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Form Tambah Divisi Baru -->
+                    <form wire:submit="saveDivision" class="mb-4">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.9rem;">
+                            Nama Divisi Baru <span class="text-danger">*</span>
+                        </label>
+                        <p class="text-muted small mb-2" style="font-size: 0.82rem;">
+                            Tambahkan divisi baru. Divisi akan tersimpan di profil ORMAWA dan muncul otomatis di pilihan formulir.
+                        </p>
+                        <div class="d-flex gap-2">
+                            <input type="text"
+                                   class="form-control @error('new_division_name') is-invalid @enderror"
+                                   wire:model="new_division_name"
+                                   placeholder="Contoh: Divisi Acara, Divisi Perlengkapan, Divisi Konsumsi..."
+                                   style="border: 2px solid var(--proposal-ink); border-radius: 12px; background: #f8fafc;"
+                                   autofocus>
+                            <button type="submit"
+                                    class="btn btn-primary px-3 text-nowrap"
+                                    style="min-height: 2.8rem; border-radius: 12px;"
+                                    wire:loading.attr="disabled">
+                                <span wire:loading.remove wire:target="saveDivision">
+                                    <i class="bi bi-plus-lg me-1"></i> Simpan
+                                </span>
+                                <span wire:loading wire:target="saveDivision">
+                                    <span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...
+                                </span>
+                            </button>
+                        </div>
+                        @error('new_division_name')
+                            <small class="text-danger d-block mt-1 fw-semibold">{{ $message }}</small>
+                        @enderror
+                    </form>
+
+                    <!-- Daftar Divisi yang Sudah Ada -->
+                    <div class="pt-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-uppercase text-muted" style="letter-spacing: 0.05em; font-size: 0.78rem;">
+                                Daftar Divisi ORMAWA ({{ $divisions->count() }})
+                            </span>
+                        </div>
+
+                        @if ($divisions->isEmpty())
+                            <div class="p-4 text-center rounded-3 text-muted small" style="background: #f8fafc; border: 1.5px dashed #cbd5e1;">
+                                <i class="bi bi-inbox fs-3 d-block text-secondary mb-1"></i>
+                                Belum ada divisi tersimpan. Silakan masukkan nama divisi baru pada formulir di atas.
+                            </div>
+                        @else
+                            <div class="d-flex flex-column gap-2" style="max-height: 250px; overflow-y: auto; padding-right: 2px;">
+                                @foreach ($divisions as $item)
+                                    @php
+                                        $isSelected = ($activeCommitteeIndexForNewDivision !== null && isset($committees[$activeCommitteeIndexForNewDivision]) && ($committees[$activeCommitteeIndexForNewDivision]['committee_role'] ?? '') === $item->name);
+                                    @endphp
+                                    <div class="p-2.5 px-3 d-flex justify-content-between align-items-center"
+                                         style="border: 1.5px solid {{ $isSelected ? '#2563eb' : '#cbd5e1' }}; border-radius: 12px; background: {{ $isSelected ? '#eff6ff' : '#ffffff' }}; box-shadow: 2px 2px 0 {{ $isSelected ? '#2563eb' : 'var(--proposal-ink)' }}; transition: all 0.15s ease;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 1.85rem; height: 1.85rem; border-radius: 8px; background: {{ $isSelected ? '#dbeafe' : '#f1f5f9' }}; color: {{ $isSelected ? '#1d4ed8' : '#475569' }}; font-size: 0.85rem;">
+                                                <i class="bi bi-tag-fill"></i>
+                                            </span>
+                                            <span class="fw-bold" style="font-size: 0.92rem; color: var(--proposal-ink);">{{ $item->name }}</span>
+                                            @if ($isSelected)
+                                                <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #16a34a; font-size: 0.72rem; padding: 0.2rem 0.55rem;">
+                                                    <i class="bi bi-check2 me-0.5"></i> Terpilih
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button type="button"
+                                                    class="btn btn-sm {{ $isSelected ? 'btn-primary' : 'btn-outline-primary' }}"
+                                                    style="min-height: 2.1rem; padding: 0.25rem 0.85rem; font-size: 0.82rem; border-radius: 8px;"
+                                                    wire:click="selectDivisionForCommittee('{{ addslashes($item->name) }}')"
+                                                    title="Pilih divisi ini untuk baris panitia">
+                                                <i class="bi bi-check-lg me-1"></i> Pilih
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    style="min-height: 2.1rem; width: 2.1rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;"
+                                                    wire:click="deleteDivision({{ $item->id }})"
+                                                    wire:confirm="Yakin ingin menghapus divisi '{{ $item->name }}'?"
+                                                    title="Hapus divisi">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
+                </div>
+
+                <div class="siom-modal-foot">
+                    <button type="button"
+                            class="btn btn-sm"
+                            style="min-height: 2.4rem; padding: 0.45rem 1.25rem; border-radius: 9999px; background: #f1f5f9; color: var(--proposal-ink);"
+                            wire:click="closeDivisionModal">
+                        Tutup
+                    </button>
                 </div>
             </div>
         </div>
