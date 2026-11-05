@@ -1,28 +1,38 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use App\Services\MenuAccessService;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
+    public array $enabledMenus = [];
+
+    public function mount(MenuAccessService $menuAccess): void
+    {
+        $this->enabledMenus = $menuAccess->enabledMenus(auth()->user());
+    }
+
+    #[On('menu-access-updated')]
+    public function refreshMenuAccess(MenuAccessService $menuAccess): void
+    {
+        $this->enabledMenus = $menuAccess->enabledMenus(auth()->user());
+    }
+
     public function logout(Logout $logout): void
     {
         $logout();
 
         $this->redirect('/', navigate: false);
     }
+
 }; ?>
 
 @php
     $user = auth()->user();
     $isSuperadmin = $user?->hasRole('superadmin') ?? false;
-    $isSecretary = $user?->hasRole('sekretaris_ormawa') ?? false;
-    $canApprove = $user?->hasAnyRole([
-        'pembina_ormawa',
-        'kaprodi',
-        'kabag_kemahasiswaan',
-        'warek',
-    ]) ?? false;
+    $hasSecretaryMenus = collect($enabledMenus)->contains(fn (string $menu): bool => str_starts_with($menu, 'sekretaris.'));
 @endphp
 
 <nav
@@ -56,51 +66,55 @@ new class extends Component
                             <i class="bi bi-sliders"></i> Administrasi
                         </summary>
                         <div class="siom-nav-menu">
-                            <a href="{{ route('admin.ormawa') }}" wire:navigate>
-                                <i class="bi bi-diagram-3"></i> ORMAWA dan Pagu
-                            </a>
-                            <a href="{{ route('admin.program-studi') }}" wire:navigate>
-                                <i class="bi bi-mortarboard"></i> Program Studi
-                            </a>
-                            <a href="{{ route('admin.periode') }}" wire:navigate>
-                                <i class="bi bi-calendar3"></i> Periode
-                            </a>
-                            <a href="{{ route('admin.pengguna') }}" wire:navigate>
-                                <i class="bi bi-people"></i> Pengguna
-                            </a>
-                            <a href="{{ route('admin.template-dokumen') }}" wire:navigate>
-                                <i class="bi bi-file-earmark-word"></i> Template Dokumen
-                            </a>
+                            @if (in_array('admin.ormawa', $enabledMenus, true))
+                                <a href="{{ route('admin.ormawa') }}" wire:navigate><i class="bi bi-diagram-3"></i> ORMAWA dan Pagu</a>
+                            @endif
+                            @if (in_array('admin.program-studi', $enabledMenus, true))
+                                <a href="{{ route('admin.program-studi') }}" wire:navigate><i class="bi bi-mortarboard"></i> Program Studi</a>
+                            @endif
+                            @if (in_array('admin.periode', $enabledMenus, true))
+                                <a href="{{ route('admin.periode') }}" wire:navigate><i class="bi bi-calendar3"></i> Periode</a>
+                            @endif
+                            @if (in_array('admin.pengguna', $enabledMenus, true))
+                                <a href="{{ route('admin.pengguna') }}" wire:navigate><i class="bi bi-people"></i> Pengguna</a>
+                            @endif
+                            @if (in_array('admin.template-dokumen', $enabledMenus, true))
+                                <a href="{{ route('admin.template-dokumen') }}" wire:navigate><i class="bi bi-file-earmark-word"></i> Template Dokumen</a>
+                            @endif
+                            @if (in_array('admin.landing-info', $enabledMenus, true))
+                                <a href="{{ route('admin.kemahasiswaan-info') }}" wire:navigate><i class="bi bi-megaphone"></i> Informasi Kemahasiswaan</a>
+                            @endif
+                            <a href="{{ route('admin.menu-access') }}" wire:navigate><i class="bi bi-toggles"></i> Akses Menu</a>
                         </div>
                     </details>
                 @endif
 
-                @if ($isSecretary)
+                @if ($hasSecretaryMenus)
                     <details class="siom-nav-group" @if (request()->routeIs('sekretaris.*')) open @endif>
                         <summary class="{{ request()->routeIs('sekretaris.*') ? 'is-active' : '' }}">
                             <i class="bi bi-briefcase"></i> Operasional ORMAWA
                         </summary>
                         <div class="siom-nav-menu">
-                            <a href="{{ route('sekretaris.anggota') }}" wire:navigate>
-                                <i class="bi bi-person-vcard"></i> Anggota
-                            </a>
-                            <a href="{{ route('sekretaris.pengajuan') }}" wire:navigate>
-                                <i class="bi bi-send"></i> Pengajuan Dana
-                            </a>
-                            <a href="{{ route('sekretaris.notulensi') }}" wire:navigate>
-                                <i class="bi bi-journal-text"></i> Notulensi
-                            </a>
-                            <a href="{{ route('sekretaris.kas') }}" wire:navigate>
-                                <i class="bi bi-wallet2"></i> Kas ORMAWA
-                            </a>
-                            <a href="{{ route('sekretaris.lpj') }}" wire:navigate>
-                                <i class="bi bi-clipboard-check"></i> LPJ
-                            </a>
+                            @if (in_array('sekretaris.anggota', $enabledMenus, true))
+                                <a href="{{ route('sekretaris.anggota') }}" wire:navigate><i class="bi bi-person-vcard"></i> Anggota</a>
+                            @endif
+                            @if (in_array('sekretaris.pengajuan', $enabledMenus, true))
+                                <a href="{{ route('sekretaris.pengajuan') }}" wire:navigate><i class="bi bi-send"></i> Pengajuan Dana</a>
+                            @endif
+                            @if (in_array('sekretaris.notulensi', $enabledMenus, true))
+                                <a href="{{ route('sekretaris.notulensi') }}" wire:navigate><i class="bi bi-journal-text"></i> Notulensi</a>
+                            @endif
+                            @if (in_array('sekretaris.kas', $enabledMenus, true))
+                                <a href="{{ route('sekretaris.kas') }}" wire:navigate><i class="bi bi-wallet2"></i> Kas ORMAWA</a>
+                            @endif
+                            @if (in_array('sekretaris.lpj', $enabledMenus, true))
+                                <a href="{{ route('sekretaris.lpj') }}" wire:navigate><i class="bi bi-clipboard-check"></i> LPJ</a>
+                            @endif
                         </div>
                     </details>
                 @endif
 
-                @if ($canApprove)
+                @if (in_array('approval', $enabledMenus, true))
                     <a class="siom-nav-link {{ request()->routeIs('approval.*') ? 'is-active' : '' }}"
                        href="{{ route('approval.index') }}"
                        wire:navigate>
@@ -108,16 +122,19 @@ new class extends Component
                     </a>
                 @endif
 
-                <a class="siom-nav-link {{ request()->routeIs('laporan') ? 'is-active' : '' }}"
-                   href="{{ route('laporan') }}"
-                   wire:navigate>
-                    <i class="bi bi-bar-chart"></i> Laporan
-                </a>
+                @if (in_array('laporan', $enabledMenus, true))
+                    <a class="siom-nav-link {{ request()->routeIs('laporan') ? 'is-active' : '' }}"
+                       href="{{ route('laporan') }}"
+                       wire:navigate>
+                        <i class="bi bi-bar-chart"></i> Laporan
+                    </a>
+                @endif
             </div>
         </div>
 
         <div class="siom-topbar-actions">
             @if ($user)
+                <livewire:notifications.center />
                 <a href="{{ route('profile') }}" class="siom-nav-profile" wire:navigate>
                     <span class="siom-nav-avatar"><i class="bi bi-person"></i></span>
                     <span>{{ $user->name }}</span>
@@ -149,43 +166,47 @@ new class extends Component
 
             @if ($isSuperadmin)
                 <span class="siom-mobile-heading">Administrasi</span>
-                <a class="siom-mobile-link" href="{{ route('admin.ormawa') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-diagram-3"></i> ORMAWA dan Pagu
-                </a>
-                <a class="siom-mobile-link" href="{{ route('admin.program-studi') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-mortarboard"></i> Program Studi
-                </a>
-                <a class="siom-mobile-link" href="{{ route('admin.periode') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-calendar3"></i> Periode
-                </a>
-                <a class="siom-mobile-link" href="{{ route('admin.pengguna') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-people"></i> Pengguna
-                </a>
-                <a class="siom-mobile-link" href="{{ route('admin.template-dokumen') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-file-earmark-word"></i> Template Dokumen
-                </a>
+                @if (in_array('admin.ormawa', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('admin.ormawa') }}" wire:navigate @click="open = false"><i class="bi bi-diagram-3"></i> ORMAWA dan Pagu</a>
+                @endif
+                @if (in_array('admin.program-studi', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('admin.program-studi') }}" wire:navigate @click="open = false"><i class="bi bi-mortarboard"></i> Program Studi</a>
+                @endif
+                @if (in_array('admin.periode', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('admin.periode') }}" wire:navigate @click="open = false"><i class="bi bi-calendar3"></i> Periode</a>
+                @endif
+                @if (in_array('admin.pengguna', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('admin.pengguna') }}" wire:navigate @click="open = false"><i class="bi bi-people"></i> Pengguna</a>
+                @endif
+                @if (in_array('admin.template-dokumen', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('admin.template-dokumen') }}" wire:navigate @click="open = false"><i class="bi bi-file-earmark-word"></i> Template Dokumen</a>
+                @endif
+                @if (in_array('admin.landing-info', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('admin.kemahasiswaan-info') }}" wire:navigate @click="open = false"><i class="bi bi-megaphone"></i> Informasi Kemahasiswaan</a>
+                @endif
+                <a class="siom-mobile-link" href="{{ route('admin.menu-access') }}" wire:navigate @click="open = false"><i class="bi bi-toggles"></i> Akses Menu</a>
             @endif
 
-            @if ($isSecretary)
+            @if ($hasSecretaryMenus)
                 <span class="siom-mobile-heading">Operasional ORMAWA</span>
-                <a class="siom-mobile-link" href="{{ route('sekretaris.anggota') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-person-vcard"></i> Anggota
-                </a>
-                <a class="siom-mobile-link" href="{{ route('sekretaris.pengajuan') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-send"></i> Pengajuan Dana
-                </a>
-                <a class="siom-mobile-link" href="{{ route('sekretaris.notulensi') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-journal-text"></i> Notulensi
-                </a>
-                <a class="siom-mobile-link" href="{{ route('sekretaris.kas') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-wallet2"></i> Kas ORMAWA
-                </a>
-                <a class="siom-mobile-link" href="{{ route('sekretaris.lpj') }}" wire:navigate @click="open = false">
-                    <i class="bi bi-clipboard-check"></i> LPJ
-                </a>
+                @if (in_array('sekretaris.anggota', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('sekretaris.anggota') }}" wire:navigate @click="open = false"><i class="bi bi-person-vcard"></i> Anggota</a>
+                @endif
+                @if (in_array('sekretaris.pengajuan', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('sekretaris.pengajuan') }}" wire:navigate @click="open = false"><i class="bi bi-send"></i> Pengajuan Dana</a>
+                @endif
+                @if (in_array('sekretaris.notulensi', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('sekretaris.notulensi') }}" wire:navigate @click="open = false"><i class="bi bi-journal-text"></i> Notulensi</a>
+                @endif
+                @if (in_array('sekretaris.kas', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('sekretaris.kas') }}" wire:navigate @click="open = false"><i class="bi bi-wallet2"></i> Kas ORMAWA</a>
+                @endif
+                @if (in_array('sekretaris.lpj', $enabledMenus, true))
+                    <a class="siom-mobile-link" href="{{ route('sekretaris.lpj') }}" wire:navigate @click="open = false"><i class="bi bi-clipboard-check"></i> LPJ</a>
+                @endif
             @endif
 
-            @if ($canApprove)
+            @if (in_array('approval', $enabledMenus, true))
                 <a class="siom-mobile-link {{ request()->routeIs('approval.*') ? 'is-active' : '' }}"
                    href="{{ route('approval.index') }}"
                    wire:navigate
@@ -194,12 +215,14 @@ new class extends Component
                 </a>
             @endif
 
-            <a class="siom-mobile-link {{ request()->routeIs('laporan') ? 'is-active' : '' }}"
-               href="{{ route('laporan') }}"
-               wire:navigate
-               @click="open = false">
-                <i class="bi bi-bar-chart"></i> Laporan
-            </a>
+            @if (in_array('laporan', $enabledMenus, true))
+                <a class="siom-mobile-link {{ request()->routeIs('laporan') ? 'is-active' : '' }}"
+                   href="{{ route('laporan') }}"
+                   wire:navigate
+                   @click="open = false">
+                    <i class="bi bi-bar-chart"></i> Laporan
+                </a>
+            @endif
 
             @if ($user)
                 <a class="siom-mobile-link" href="{{ route('profile') }}" wire:navigate @click="open = false">
