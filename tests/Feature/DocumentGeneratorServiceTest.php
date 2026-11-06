@@ -499,3 +499,61 @@ test('generator memastikan logo cover pada paragraf berpusat dikonversi ke drawi
         ->and($resultXml)->toContain('r:embed="rId1"')
         ->and($resultXml)->toContain('Logo Ormawa');
 });
+
+test('generator menyisipkan tanda tangan canvas untuk role terkait ke dalam dokumen proposal tanpa menyisakan macro teks mentah', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/proposal_signature_test.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    foreach (['pembina_ormawa', 'ketua_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $roleName) {
+        $section->addText('${signature_'.$roleName.'}');
+    }
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template Proposal Signature Test',
+        'type' => 'proposal',
+        'file_name' => 'proposal_signature_test.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    // Berikan tanda tangan canvas pada submitter
+    $submitterSig = UploadedFile::fake()->image('ketua.png')->store('signatures', 'local');
+    $fixture['submitter']->update(['signature_path' => $submitterSig]);
+
+    // Berikan tanda tangan canvas pada masing-masing role pejabat
+    foreach (['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $roleName) {
+        $role = Role::firstOrCreate(['name' => $roleName], ['display_name' => $roleName]);
+        $sigPath = UploadedFile::fake()->image($roleName.'.png')->store('signatures', 'local');
+        User::factory()->create([
+            'role_id' => $role->id,
+            'ormawa_id' => $roleName === 'pembina_ormawa' ? $fixture['ormawa']->id : null,
+            'signature_path' => $sigPath,
+        ]);
+    }
+
+    $generator = app(DocumentGeneratorService::class);
+    $relPath = $generator->generateProposal($fixture['submission']);
+
+    expect(Storage::disk('public')->exists($relPath))->toBeTrue();
+    $archive = new ZipArchive;
+    expect($archive->open(Storage::disk('public')->path($relPath)))->toBeTrue();
+    $documentXml = $archive->getFromName('word/document.xml');
+    $archive->close();
+
+    // Pastikan tidak ada macro ${signature_...} mentah yang tertinggal
+    expect($documentXml)->not->toContain('${signature_pembina_ormawa}')
+        ->and($documentXml)->not->toContain('${signature_ketua_ormawa}')
+        ->and($documentXml)->not->toContain('${signature_kabag_kemahasiswaan}')
+        ->and($documentXml)->not->toContain('${signature_kaprodi}')
+        ->and($documentXml)->not->toContain('${signature_warek}');
+});

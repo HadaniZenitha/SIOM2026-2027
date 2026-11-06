@@ -350,7 +350,7 @@
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
-    @if ($isApprover)
+    @if (!empty($canManageSignature) || $isApprover)
         <section class="card" x-data="signatureCanvas()" x-init="initCanvas()">
             <div class="card-body">
                 <div class="siom-panel-head">
