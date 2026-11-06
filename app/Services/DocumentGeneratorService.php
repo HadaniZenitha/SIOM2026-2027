@@ -162,7 +162,14 @@ class DocumentGeneratorService
             }
         }
 
-        // Inject tanda tangan pembuat / ketua pelaksana jika tersimpan di profil submitter
+        // Inject tanda tangan ketua pelaksana jika tersimpan di submission atau profil submitter
+        $chairmanSigPath = null;
+        if ($context instanceof Submission && $context->chairman_signature_path) {
+            $chairmanSigPath = $this->resolveSignatureFilePath($context->chairman_signature_path);
+        } elseif ($context instanceof Lpj && $context->submission?->chairman_signature_path) {
+            $chairmanSigPath = $this->resolveSignatureFilePath($context->submission->chairman_signature_path);
+        }
+
         $submitterUser = null;
         if ($context instanceof Submission) {
             $submitterUser = $context->submitter;
@@ -170,16 +177,21 @@ class DocumentGeneratorService
             $submitterUser = $context->creator;
         }
 
-        if ($submitterUser?->signature_path && Storage::disk('local')->exists($submitterUser->signature_path)) {
-            $submitterSigPath = Storage::disk('local')->path($submitterUser->signature_path);
+        $finalLeaderSigPath = $chairmanSigPath;
+        if (! $finalLeaderSigPath && $submitterUser?->signature_path && Storage::disk('local')->exists($submitterUser->signature_path)) {
+            $finalLeaderSigPath = Storage::disk('local')->path($submitterUser->signature_path);
+        }
+
+        if ($finalLeaderSigPath && file_exists($finalLeaderSigPath)) {
             foreach (['signature_ketua_pelaksana', 'signature_ketua_ormawa', 'signature_presma'] as $userPlaceholder) {
                 if (in_array($userPlaceholder, $variables, true) && ! isset($signatures[$userPlaceholder])) {
                     $processor->setImageValue($userPlaceholder, [
-                        'path'   => $submitterSigPath,
+                        'path'   => $finalLeaderSigPath,
                         'width'  => 195,
                         'height' => 85,
                         'ratio'  => true,
                     ]);
+                    $signatures[$userPlaceholder] = $finalLeaderSigPath;
                 }
             }
         }
@@ -888,8 +900,11 @@ class DocumentGeneratorService
             $signatures['signature_warek'] = $warekPath;
         }
 
-        // 5. Ketua Ormawa / Ketua Pelaksana / Presma
-        $leaderSig = $submitter?->signature_path;
+        // 5. Ketua Pelaksana / Ketua Ormawa / Presma
+        $chairmanSig = $submission->chairman_signature_path;
+        $chairmanPath = $this->resolveSignatureFilePath($chairmanSig);
+
+        $leaderSig = $chairmanSig ?: $submitter?->signature_path;
         if (! $leaderSig && $submission->ormawa_id) {
             $leaderSig = User::query()
                 ->where('ormawa_id', $submission->ormawa_id)
@@ -903,8 +918,8 @@ class DocumentGeneratorService
                 ->value('signature_path');
         }
         if ($leaderPath = $this->resolveSignatureFilePath($leaderSig)) {
-            $signatures['signature_ketua_ormawa'] = $leaderPath;
-            $signatures['signature_ketua_pelaksana'] = $leaderPath;
+            $signatures['signature_ketua_ormawa'] = $chairmanPath ?: $leaderPath;
+            $signatures['signature_ketua_pelaksana'] = $chairmanPath ?: $leaderPath;
             $signatures['signature_presma'] = $leaderPath;
         }
 

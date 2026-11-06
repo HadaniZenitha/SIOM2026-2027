@@ -486,6 +486,108 @@
             border-top: 1px solid #e2e8f0;
             background: #f8fafc;
         }
+
+        /* Tanda Tangan Digital Ketua Pelaksana */
+        .siom-proposal .siom-sign-tabs {
+            display: flex;
+            gap: .5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: .5rem;
+        }
+        .siom-proposal .siom-sign-tab-btn {
+            background: none;
+            border: none;
+            padding: .45rem .85rem;
+            font-weight: 700;
+            font-size: .85rem;
+            color: #64748b;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+        }
+        .siom-proposal .siom-sign-tab-btn.is-active {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        .siom-proposal .siom-sign-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr);
+            gap: 1.25rem;
+            align-items: start;
+        }
+        .siom-proposal .siom-canvas-wrapper {
+            position: relative;
+            background: #ffffff;
+            border: 2px solid #0f172a;
+            border-radius: 12px;
+            touch-action: none;
+            box-shadow: 3px 3px 0 #0f172a;
+            overflow: hidden;
+        }
+        .siom-proposal .siom-canvas-guide {
+            position: absolute;
+            bottom: 38px;
+            left: 20px;
+            right: 20px;
+            border-bottom: 1.5px dashed #cbd5e1;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: .75rem;
+            font-weight: 600;
+            padding-bottom: 4px;
+        }
+        .siom-proposal .siom-sign-canvas {
+            display: block;
+            width: 100%;
+            height: 200px;
+            cursor: crosshair;
+        }
+        .siom-proposal .siom-canvas-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: .5rem;
+            margin-top: .75rem;
+            flex-wrap: wrap;
+        }
+        .siom-proposal .siom-preview-card {
+            background: #ffffff;
+            border: 2px dashed #94a3b8;
+            border-radius: 14px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .siom-proposal .siom-checkerboard {
+            background-color: #ffffff;
+            background-image: linear-gradient(45deg, #f1f5f9 25%, transparent 25%),
+                              linear-gradient(-45deg, #f1f5f9 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #f1f5f9 75%),
+                              linear-gradient(-45deg, transparent 75%, #f1f5f9 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: .75rem;
+        }
+        .siom-proposal .siom-checkerboard img {
+            max-height: 110px;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        @media (max-width: 768px) {
+            .siom-proposal .siom-sign-layout {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 
     <div class="container py-4">
@@ -742,6 +844,124 @@
                                     <div class="col-md-6"><label class="form-label" for="pembina_nuptk">NUPTK Pembina</label><input id="pembina_nuptk" type="text" class="form-control" wire:model="pembina_nuptk">@error('pembina_nuptk') <small class="text-danger">{{ $message }}</small> @enderror</div>
                                     <div class="col-md-6"><label class="form-label" for="kaprodi_name">Nama Kaprodi</label><input id="kaprodi_name" type="text" class="form-control" wire:model="kaprodi_name">@error('kaprodi_name') <small class="text-danger">{{ $message }}</small> @enderror</div>
                                     <div class="col-md-6"><label class="form-label" for="kaprodi_nuptk">NUPTK Kaprodi</label><input id="kaprodi_nuptk" type="text" class="form-control" wire:model="kaprodi_nuptk">@error('kaprodi_nuptk') <small class="text-danger">{{ $message }}</small> @enderror</div>
+
+                                    <!-- Fitur Tanda Tangan Digital Ketua Pelaksana -->
+                                    <div class="col-12 mt-4 pt-3 border-top" x-data="chairmanSignatureCanvas()" x-init="initCanvas()">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                                            <div>
+                                                <h6 class="fw-bold mb-0 text-dark">
+                                                    <i class="bi bi-pen-fill text-primary me-1"></i> Tanda Tangan Digital Ketua Pelaksana
+                                                </h6>
+                                                <small class="text-muted">Tanda tangan digital transparan untuk pengesahan Proposal & Nota Dinas kegiatan ini.</small>
+                                            </div>
+                                            <span class="badge {{ $chairman_signature_path ? 'bg-success' : 'bg-warning text-dark' }}">
+                                                {{ $chairman_signature_path ? '✓ Tanda Tangan Tersimpan' : 'Belum Ada Tanda Tangan' }}
+                                            </span>
+                                        </div>
+
+                                        @if (session()->has('chairman_signature_success'))
+                                            <div class="alert alert-success alert-dismissible fade show py-2 px-3 small mb-3" role="alert">
+                                                <i class="bi bi-check-circle-fill me-1"></i> {{ session('chairman_signature_success') }}
+                                                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                                            </div>
+                                        @endif
+
+                                        <div class="siom-sign-tabs">
+                                            <button type="button" class="siom-sign-tab-btn" :class="{ 'is-active': mode === 'draw' }" @click="mode = 'draw'; $nextTick(() => resizeCanvas())">
+                                                <i class="bi bi-pen"></i> Tanda Tangan di Layar (Canvas)
+                                            </button>
+                                            <button type="button" class="siom-sign-tab-btn" :class="{ 'is-active': mode === 'upload' }" @click="mode = 'upload'">
+                                                <i class="bi bi-cloud-arrow-up"></i> Unggah Berkas Gambar
+                                            </button>
+                                        </div>
+
+                                        <div class="siom-sign-layout">
+                                            <!-- Area Input Tanda Tangan -->
+                                            <div>
+                                                <!-- Mode Draw: Canvas Pad -->
+                                                <div x-show="mode === 'draw'" style="display: none;" x-transition>
+                                                    <div class="siom-canvas-wrapper">
+                                                        <div class="siom-canvas-guide">
+                                                            <span>Garis panduan tanda tangan</span>
+                                                            <span>Tinta Hitam Pekat</span>
+                                                        </div>
+                                                        <canvas
+                                                            x-ref="canvas"
+                                                            class="siom-sign-canvas"
+                                                            @mousedown="startDrawing($event)"
+                                                            @mousemove="draw($event)"
+                                                            @mouseup="stopDrawing()"
+                                                            @mouseleave="stopDrawing()"
+                                                            @touchstart="startDrawing($event)"
+                                                            @touchmove="draw($event)"
+                                                            @touchend="stopDrawing()"
+                                                            @touchcancel="stopDrawing()"
+                                                        ></canvas>
+                                                    </div>
+
+                                                    @error('chairmanSignatureDrawn') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+
+                                                    <div class="siom-canvas-toolbar">
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @click="clear()" :disabled="!hasStrokes">
+                                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Bersihkan
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @click="undo()" :disabled="!hasStrokes">
+                                                                <i class="bi bi-arrow-left me-1"></i> Undo
+                                                            </button>
+                                                        </div>
+                                                        <div>
+                                                            <button type="button" class="btn btn-sm btn-primary" @click="saveSignature()" :disabled="!hasStrokes || saving" wire:loading.attr="disabled">
+                                                                <span x-show="!saving"><i class="bi bi-check-lg me-1"></i> Simpan Tanda Tangan Digital</span>
+                                                                <span x-show="saving" style="display: none;"><i class="bi bi-hourglass-split me-1"></i> Menyimpan…</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Mode Upload: File Input -->
+                                                <div x-show="mode === 'upload'" style="display: none;" x-transition>
+                                                    <div class="p-3 bg-white border rounded-3">
+                                                        <label for="chairmanSignatureFile" class="form-label small fw-semibold">Pilih gambar tanda tangan (PNG/JPG, maks 2 MB)</label>
+                                                        <div class="input-group">
+                                                            <input id="chairmanSignatureFile" type="file" class="form-control" wire:model="chairmanSignatureFile" accept=".png,.jpg,.jpeg">
+                                                            <button class="btn btn-primary" type="button" wire:click="uploadChairmanSignature" wire:loading.attr="disabled" wire:target="uploadChairmanSignature,chairmanSignatureFile">
+                                                                <span wire:loading.remove wire:target="uploadChairmanSignature,chairmanSignatureFile">
+                                                                    <i class="bi bi-upload me-1"></i> Unggah
+                                                                </span>
+                                                                <span wire:loading wire:target="uploadChairmanSignature,chairmanSignatureFile">
+                                                                    <span class="spinner-border spinner-border-sm me-1"></span> Mengunggah…
+                                                                </span>
+                                                            </button>
+                                                        </div>
+                                                        @error('chairmanSignatureFile') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                                                        <small class="text-muted d-block mt-2">Format yang didukung: PNG, JPG (Maksimal 2 MB, dimensi maks 2000x1000 piksel).</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Area Preview Tanda Tangan Aktif -->
+                                            <div>
+                                                <div class="siom-preview-card">
+                                                    <h6 class="small fw-bold mb-2">Pratinjau Tanda Tangan Aktif</h6>
+                                                    @if ($chairmanSignaturePreview)
+                                                        <div class="siom-checkerboard mb-2">
+                                                            <img src="{{ $chairmanSignaturePreview }}" alt="Tanda Tangan Ketua Pelaksana">
+                                                        </div>
+                                                        <small class="text-muted d-block mb-2">Latar belakang transparan. Dokumen akan menggunakan tanda tangan ini secara otomatis.</small>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" wire:click="deleteChairmanSignature" wire:confirm="Hapus tanda tangan Ketua Pelaksana ini?" wire:loading.attr="disabled">
+                                                            <i class="bi bi-trash me-1"></i> Hapus Tanda Tangan
+                                                        </button>
+                                                    @else
+                                                        <div class="siom-checkerboard mb-2 text-muted small" style="color: #94a3b8;">
+                                                            Belum ada tanda tangan aktif.
+                                                        </div>
+                                                        <small class="text-muted d-block">Silakan tanda tangani di canvas layar atau unggah gambar di samping.</small>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1184,4 +1404,189 @@
             </div>
         </div>
     @endif
+
+    <script>
+        function chairmanSignatureCanvas() {
+            return {
+                canvas: null,
+                ctx: null,
+                drawing: false,
+                hasStrokes: false,
+                saving: false,
+                mode: 'draw',
+                strokes: [],
+                currentStroke: [],
+                penColor: '#0f172a',
+
+                initCanvas() {
+                    this.$nextTick(() => {
+                        this.canvas = this.$refs.canvas;
+                        if (!this.canvas) return;
+                        this.ctx = this.canvas.getContext('2d');
+                        this.resizeCanvas();
+                        window.addEventListener('resize', () => this.resizeCanvas());
+                    });
+                },
+
+                resizeCanvas() {
+                    if (!this.canvas || !this.ctx) return;
+                    const rect = this.canvas.getBoundingClientRect();
+                    const dpr = window.devicePixelRatio || 1;
+                    const w = Math.max(rect.width, 320);
+                    const h = rect.height > 50 ? rect.height : 200;
+                    this.canvas.width = w * dpr;
+                    this.canvas.height = h * dpr;
+                    this.ctx.scale(dpr, dpr);
+                    this.redraw();
+                },
+
+                startDrawing(e) {
+                    e.preventDefault();
+                    this.drawing = true;
+                    const pt = this.getPoint(e);
+                    this.currentStroke = [pt];
+                    this.strokes.push({ color: this.penColor, points: this.currentStroke });
+                    this.drawDot(pt);
+                    this.hasStrokes = true;
+                },
+
+                draw(e) {
+                    if (!this.drawing) return;
+                    e.preventDefault();
+                    const pt = this.getPoint(e);
+                    this.currentStroke.push(pt);
+                    this.redraw();
+                },
+
+                stopDrawing() {
+                    if (!this.drawing) return;
+                    this.drawing = false;
+                    this.currentStroke = [];
+                    this.hasStrokes = this.strokes.length > 0;
+                },
+
+                drawDot(pt) {
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = this.penColor;
+                    this.ctx.arc(pt.x, pt.y, 1.8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                },
+
+                getPoint(e) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+                    return {
+                        x: clientX - rect.left,
+                        y: clientY - rect.top
+                    };
+                },
+
+                redraw() {
+                    if (!this.ctx || !this.canvas) return;
+                    const dpr = window.devicePixelRatio || 1;
+                    this.ctx.clearRect(0, 0, this.canvas.width / dpr, this.canvas.height / dpr);
+
+                    for (const stroke of this.strokes) {
+                        if (stroke.points.length === 1) {
+                            this.ctx.beginPath();
+                            this.ctx.fillStyle = stroke.color;
+                            this.ctx.arc(stroke.points[0].x, stroke.points[0].y, 1.8, 0, Math.PI * 2);
+                            this.ctx.fill();
+                            continue;
+                        }
+                        this.ctx.beginPath();
+                        this.ctx.lineCap = 'round';
+                        this.ctx.lineJoin = 'round';
+                        this.ctx.strokeStyle = stroke.color;
+                        this.ctx.lineWidth = 3.6;
+                        this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                        for (let i = 1; i < stroke.points.length; i++) {
+                            this.ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                        }
+                        this.ctx.stroke();
+                    }
+                    this.hasStrokes = this.strokes.length > 0;
+                },
+
+                clear() {
+                    this.strokes = [];
+                    this.currentStroke = [];
+                    this.hasStrokes = false;
+                    this.redraw();
+                },
+
+                undo() {
+                    if (this.strokes.length > 0) {
+                        this.strokes.pop();
+                        this.redraw();
+                    }
+                },
+
+                saveSignature() {
+                    if (!this.hasStrokes) return;
+                    this.saving = true;
+                    const dataUrl = this.exportTrimmedDataUrl();
+                    this.$wire.saveChairmanDrawnSignature(dataUrl).finally(() => {
+                        this.saving = false;
+                        this.clear();
+                    });
+                },
+
+                exportTrimmedDataUrl() {
+                    if (!this.strokes || this.strokes.length === 0) {
+                        return this.canvas.toDataURL('image/png');
+                    }
+
+                    const dpr = window.devicePixelRatio || 1;
+                    const canvasW = this.canvas.width / dpr;
+                    const canvasH = this.canvas.height / dpr;
+
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    for (const stroke of this.strokes) {
+                        for (const pt of stroke.points) {
+                            if (pt.x < minX) minX = pt.x;
+                            if (pt.x > maxX) maxX = pt.x;
+                            if (pt.y < minY) minY = pt.y;
+                            if (pt.y > maxY) maxY = pt.y;
+                        }
+                    }
+
+                    if (minX === Infinity || maxX === -Infinity) {
+                        return this.canvas.toDataURL('image/png');
+                    }
+
+                    const padding = 14;
+                    const srcX = Math.max(0, minX - padding);
+                    const srcY = Math.max(0, minY - padding);
+                    const srcW = Math.min(canvasW - srcX, (maxX - minX) + (padding * 2));
+                    const srcH = Math.min(canvasH - srcY, (maxY - minY) + (padding * 2));
+
+                    const exportWidth = 520;
+                    const aspect = srcW / Math.max(1, srcH);
+                    const exportHeight = Math.round(Math.min(260, Math.max(170, exportWidth / Math.max(1.3, aspect))));
+
+                    const offCanvas = document.createElement('canvas');
+                    offCanvas.width = exportWidth;
+                    offCanvas.height = exportHeight;
+                    const offCtx = offCanvas.getContext('2d');
+                    offCtx.clearRect(0, 0, exportWidth, exportHeight);
+
+                    const scale = Math.min((exportWidth * 0.88) / srcW, (exportHeight * 0.86) / srcH);
+                    const drawW = srcW * scale;
+                    const drawH = srcH * scale;
+                    const destX = (exportWidth - drawW) / 2;
+                    const destY = (exportHeight - drawH) / 2;
+
+                    offCtx.drawImage(
+                        this.canvas,
+                        srcX * dpr, srcY * dpr, srcW * dpr, srcH * dpr,
+                        destX, destY, drawW, drawH
+                    );
+
+                    return offCanvas.toDataURL('image/png');
+                }
+            };
+        }
+    </script>
 </div>

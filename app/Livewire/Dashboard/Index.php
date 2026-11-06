@@ -37,8 +37,6 @@ class Index extends Component
             'kaprodi',
             'kabag_kemahasiswaan',
             'warek',
-            'sekretaris_ormawa',
-            'superadmin',
         ]), 403);
 
         $this->validate([
@@ -80,8 +78,6 @@ class Index extends Component
             'kaprodi',
             'kabag_kemahasiswaan',
             'warek',
-            'sekretaris_ormawa',
-            'superadmin',
         ]), 403);
 
         if (! preg_match('/^data:image\/(png|jpeg);base64,/', $signatureDataUrl)) {
@@ -287,14 +283,7 @@ class Index extends Component
                 ->get();
         }
 
-        $canManageSignature = $user->hasAnyRole([
-            'pembina_ormawa',
-            'kaprodi',
-            'kabag_kemahasiswaan',
-            'warek',
-            'sekretaris_ormawa',
-            'superadmin',
-        ]);
+        $canManageSignature = $isApprover;
 
         $savedSignaturePreview = null;
         if ($canManageSignature && $user->signature_path && Storage::disk('local')->exists($user->signature_path)) {

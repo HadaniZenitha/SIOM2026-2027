@@ -557,3 +557,44 @@ test('generator menyisipkan tanda tangan canvas untuk role terkait ke dalam doku
         ->and($documentXml)->not->toContain('${signature_kaprodi}')
         ->and($documentXml)->not->toContain('${signature_warek}');
 });
+
+test('generator memprioritaskan chairman_signature_path dari submission untuk tanda tangan ketua pelaksana', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/proposal_chair_sig_test.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    $section->addText('${signature_ketua_pelaksana}');
+    $section->addText('${signature_ketua_ormawa}');
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template Proposal Chair Sig Test',
+        'type' => 'proposal',
+        'file_name' => 'proposal_chair_sig_test.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    $chairSig = UploadedFile::fake()->image('chair_sig.png')->store('signatures', 'local');
+    $fixture['submission']->update(['chairman_signature_path' => $chairSig]);
+
+    $generator = app(DocumentGeneratorService::class);
+    $relPath = $generator->generateProposal($fixture['submission']);
+
+    expect(Storage::disk('public')->exists($relPath))->toBeTrue();
+    $archive = new ZipArchive;
+    expect($archive->open(Storage::disk('public')->path($relPath)))->toBeTrue();
+    $documentXml = $archive->getFromName('word/document.xml');
+    $archive->close();
+
+    expect($documentXml)->not->toContain('${signature_ketua_pelaksana}')
+        ->and($documentXml)->not->toContain('${signature_ketua_ormawa}');
+});

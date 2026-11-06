@@ -76,6 +76,12 @@ class Create extends Component
 
     public string $chairman_nim = '';
 
+    public mixed $chairmanSignatureFile = null;
+
+    public ?string $chairman_signature_path = null;
+
+    public ?string $chairmanSignaturePreview = null;
+
     public string $pembina_name = '';
 
     public string $pembina_nuptk = '';
@@ -533,6 +539,134 @@ class Create extends Component
         return (float) ($item['qty'] ?? 0) * (float) ($item['price'] ?? 0);
     }
 
+    public function loadChairmanSignaturePreview(): void
+    {
+        if ($this->chairman_signature_path && Storage::disk('local')->exists($this->chairman_signature_path)) {
+            $this->chairmanSignaturePreview = 'data:image/png;base64,'.base64_encode((string) Storage::disk('local')->get($this->chairman_signature_path));
+        } else {
+            $this->chairmanSignaturePreview = null;
+        }
+    }
+
+    public function saveChairmanDrawnSignature(string $signatureDataUrl): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+
+        if (! preg_match('/^data:image\/(png|jpeg);base64,/', $signatureDataUrl)) {
+            $this->addError('chairmanSignatureDrawn', 'Format tanda tangan digital tidak valid.');
+
+            return;
+        }
+
+        $base64Data = substr($signatureDataUrl, strpos($signatureDataUrl, ',') + 1);
+        $decoded = base64_decode($base64Data, true);
+
+        if ($decoded === false || strlen($decoded) < 200) {
+            $this->addError('chairmanSignatureDrawn', 'Coretan tanda tangan tidak boleh kosong.');
+
+            return;
+        }
+
+        if (strlen($decoded) > 2 * 1024 * 1024) {
+            $this->addError('chairmanSignatureDrawn', 'Ukuran tanda tangan digital melebihi batas 2 MB.');
+
+            return;
+        }
+
+        $imageInfo = @getimagesizefromstring($decoded);
+        if ($imageInfo === false) {
+            $this->addError('chairmanSignatureDrawn', 'Berkas gambar tanda tangan tidak valid.');
+
+            return;
+        }
+
+        [$width, $height] = $imageInfo;
+        if ($width > 2000 || $height > 1000) {
+            $this->addError('chairmanSignatureDrawn', 'Dimensi tanda tangan digital melebihi batas 2000x1000 piksel.');
+
+            return;
+        }
+
+        $oldPath = $this->chairman_signature_path;
+        $filename = 'signatures/chair_sig_'.Str::random(36).'.png';
+
+        try {
+            Storage::disk('local')->put($filename, $decoded);
+            $this->chairman_signature_path = $filename;
+            $this->loadChairmanSignaturePreview();
+
+            if ($this->submission) {
+                $this->submission->update(['chairman_signature_path' => $filename]);
+            }
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($filename);
+
+            throw $exception;
+        }
+
+        if ($oldPath && $oldPath !== $filename && Storage::disk('local')->exists($oldPath)) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        $this->resetErrorBag('chairmanSignatureDrawn');
+        session()->flash('chairman_signature_success', 'Tanda tangan digital Ketua Pelaksana berhasil disimpan.');
+    }
+
+    public function uploadChairmanSignature(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+
+        $this->validate([
+            'chairmanSignatureFile' => ['required', 'image', 'mimes:png,jpg,jpeg', 'max:2048', 'dimensions:max_width=2000,max_height=1000'],
+        ], [
+            'chairmanSignatureFile.required' => 'Pilih berkas tanda tangan terlebih dahulu.',
+            'chairmanSignatureFile.image' => 'Berkas harus berupa gambar PNG atau JPG.',
+            'chairmanSignatureFile.max' => 'Ukuran gambar maksimal 2 MB.',
+            'chairmanSignatureFile.dimensions' => 'Dimensi gambar maksimal 2000x1000 piksel.',
+        ]);
+
+        $oldPath = $this->chairman_signature_path;
+        $path = $this->chairmanSignatureFile->store('signatures', 'local');
+        if (! is_string($path) || $path === '') {
+            throw new RuntimeException('Tanda tangan tidak dapat disimpan. Coba unggah kembali.');
+        }
+
+        $this->chairman_signature_path = $path;
+        $this->loadChairmanSignaturePreview();
+
+        if ($this->submission) {
+            $this->submission->update(['chairman_signature_path' => $path]);
+        }
+
+        if ($oldPath && $oldPath !== $path && Storage::disk('local')->exists($oldPath)) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        $this->reset('chairmanSignatureFile');
+        session()->flash('chairman_signature_success', 'Tanda tangan berkas Ketua Pelaksana berhasil diunggah.');
+    }
+
+    public function deleteChairmanSignature(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+
+        if ($this->chairman_signature_path && Storage::disk('local')->exists($this->chairman_signature_path)) {
+            Storage::disk('local')->delete($this->chairman_signature_path);
+        }
+
+        $this->chairman_signature_path = null;
+        $this->chairmanSignaturePreview = null;
+
+        if ($this->submission) {
+            $this->submission->update(['chairman_signature_path' => null]);
+        }
+
+        session()->flash('chairman_signature_success', 'Tanda tangan Ketua Pelaksana berhasil dihapus.');
+    }
+
     public function saveDraft(): void
     {
         if ($this->sourceType === 'upload') {
@@ -676,6 +810,7 @@ class Create extends Component
                         'total_amount' => $data['uploadedTotalAmount'],
                         'event_date' => $data['event_date'],
                         'activity_date' => $data['event_date'],
+                        'chairman_signature_path' => $this->chairman_signature_path,
                         'status' => 'draft',
                     ]);
 
@@ -684,6 +819,7 @@ class Create extends Component
                     'total_amount' => $data['uploadedTotalAmount'],
                     'event_date' => $data['event_date'],
                     'activity_date' => $data['event_date'],
+                    'chairman_signature_path' => $this->chairman_signature_path,
                 ]);
                 $submission->items()->delete();
                 $submission->items()->create([
@@ -766,6 +902,7 @@ class Create extends Component
                 'budget_code' => $this->budget_code,
                 'chairman_name' => $this->chairman_name,
                 'chairman_nim' => $this->chairman_nim,
+                'chairman_signature_path' => $this->chairman_signature_path,
                 'pembina_name' => $this->pembina_name,
                 'pembina_nuptk' => $this->pembina_nuptk,
                 'kaprodi_name' => $this->kaprodi_name,
@@ -919,6 +1056,8 @@ class Create extends Component
         $this->budget_code = $submission->budget_code ?? '';
         $this->chairman_name = $submission->chairman_name ?? '';
         $this->chairman_nim = $submission->chairman_nim ?? '';
+        $this->chairman_signature_path = $submission->chairman_signature_path;
+        $this->loadChairmanSignaturePreview();
         $this->pembina_name = $submission->pembina_name ?? '';
         $this->pembina_nuptk = $submission->pembina_nuptk ?? '';
         $this->kaprodi_name = $submission->kaprodi_name ?? '';

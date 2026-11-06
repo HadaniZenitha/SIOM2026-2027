@@ -215,6 +215,68 @@ test('approver cannot store an empty or invalid drawn digital signature', functi
     expect($user->fresh()->signature_path)->toBeNull();
 });
 
+test('non approver such as sekretaris cannot manage signature from the dashboard', function () {
+    Storage::fake('local');
+    $role = Role::create(['name' => 'sekretaris_ormawa', 'display_name' => 'Sekretaris Ormawa']);
+    $user = User::factory()->create(['role_id' => $role->id]);
+
+    Livewire::actingAs($user)
+        ->test(DashboardIndex::class)
+        ->set('signatureFile', UploadedFile::fake()->image('signature.png'))
+        ->call('uploadSignature')
+        ->assertForbidden();
+
+    expect($user->fresh()->signature_path)->toBeNull();
+});
+
+test('sekretaris can store and manage chairman signature via canvas and file upload in proposal form', function () {
+    Storage::fake('local');
+    $fixture = createApprovalFlowFixture();
+    $secretary = $fixture['submitter'];
+
+    $img = imagecreatetruecolor(100, 50);
+    imagesavealpha($img, true);
+    $transparent = imagecolorallocatealpha($img, 0, 0, 0, 127);
+    imagefill($img, 0, 0, $transparent);
+    $color = imagecolorallocate($img, 15, 23, 42);
+    imageline($img, 10, 10, 90, 40, $color);
+    ob_start();
+    imagepng($img);
+    $pngBytes = ob_get_clean();
+    imagedestroy($img);
+    $validDataUrl = 'data:image/png;base64,'.base64_encode($pngBytes);
+
+    // Test drawn canvas signature
+    $test = Livewire::actingAs($secretary)
+        ->test(CreateSubmission::class)
+        ->set('step', 3)
+        ->call('saveChairmanDrawnSignature', $validDataUrl)
+        ->assertHasNoErrors()
+        ->assertSee('Tanda tangan digital Ketua Pelaksana berhasil disimpan.');
+
+    $chairPath = $test->get('chairman_signature_path');
+    expect($chairPath)->toStartWith('signatures/chair_sig_')
+        ->and(Storage::disk('local')->exists($chairPath))->toBeTrue();
+
+    // Test file upload signature
+    $test->set('chairmanSignatureFile', UploadedFile::fake()->image('chairman_uploaded.png'))
+        ->call('uploadChairmanSignature')
+        ->assertHasNoErrors()
+        ->assertSee('Tanda tangan berkas Ketua Pelaksana berhasil diunggah.');
+
+    $uploadedPath = $test->get('chairman_signature_path');
+    expect($uploadedPath)->toStartWith('signatures/')
+        ->and(Storage::disk('local')->exists($uploadedPath))->toBeTrue();
+
+    // Test saving draft saves chairman_signature_path
+    $test->set('activity_name', 'Kegiatan Uji TTD Ketupel')
+        ->call('saveDraft');
+
+    $saved = Submission::where('activity_name', 'Kegiatan Uji TTD Ketupel')->first();
+    expect($saved)->not->toBeNull()
+        ->and($saved->chairman_signature_path)->toBe($uploadedPath);
+});
+
 test('approver dashboard shows approved proposals and the complete decision history', function () {
     $fixture = createApprovalFlowFixture();
     $submission = $fixture['submission'];
