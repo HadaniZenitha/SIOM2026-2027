@@ -191,7 +191,7 @@ class MasterDataSeeder extends Seeder
                 'code' => 'HIMKANES',
                 'name' => 'HIMA D-IV Anestesiologi',
                 'type' => 'hima',
-                'program_studi_id' => $prodiMap['D4_ANESTESI'] ?? null,
+                'program_studi_id' => $prodiMap['D4_ANES'] ?? $prodiMap['D4_ANESTESI'] ?? null,
                 'description' => 'Mewadahi mahasiswa Program Studi D-IV Anestesiologi.',
             ],
             [

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Lpj;
+use App\Models\LpjDocument;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\DocumentGeneratorService;
@@ -126,13 +127,65 @@ class DocumentPreviewController extends Controller
 
     /**
      * Stream file lampiran (nota, dokumentasi, bukti) secara inline.
+     * Mendukung Document (Proposal) maupun LpjDocument (LPJ).
      */
-    public function streamAttachment(Document $document): Response
+    public function streamAttachment(int|string $id): Response
     {
-        abort_unless(Storage::disk('local')->exists($document->file_path), 404, 'Berkas lampiran tidak ditemukan.');
-        $fullPath = Storage::disk('local')->path($document->file_path);
+        $doc = Document::find($id) ?? LpjDocument::find($id);
+        abort_unless($doc, 404, 'Berkas lampiran tidak ditemukan.');
 
-        return $this->inlineResponse($fullPath, $document->file_name);
+        $this->authorizeAttachmentAccess($doc);
+
+        $fullPath = $this->resolveFilePath($doc->file_path);
+        abort_unless($fullPath && file_exists($fullPath), 404, 'Berkas fisik lampiran tidak ditemukan di penyimpanan server.');
+
+        return $this->inlineResponse($fullPath, $doc->file_name);
+    }
+
+    /**
+     * Halaman penuh untuk preview lampiran dokumen (PNG, PDF, DOCX).
+     */
+    public function viewAttachment(int|string $id)
+    {
+        $doc = Document::find($id) ?? LpjDocument::find($id);
+        abort_unless($doc, 404, 'Berkas lampiran tidak ditemukan.');
+
+        $this->authorizeAttachmentAccess($doc);
+
+        $fileUrl = route('documents.preview.attachment.file', $doc->id);
+        $downloadUrl = route('documents.preview.attachment.file', $doc->id);
+        $ext = strtolower(pathinfo($doc->file_name, PATHINFO_EXTENSION));
+
+        $format = match ($ext) {
+            'pdf' => 'pdf',
+            'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg' => 'image',
+            default => 'docx',
+        };
+
+        $submission = null;
+        $lpj = null;
+        $status = 'uploaded';
+
+        if ($doc instanceof Document) {
+            $submission = $doc->submission;
+            $status = $submission?->status ?? 'uploaded';
+        } elseif ($doc instanceof LpjDocument) {
+            $lpj = $doc->lpj;
+            $submission = $lpj?->submission;
+            $status = $lpj?->status ?? 'uploaded';
+        }
+
+        return view('documents.preview', [
+            'title' => 'Lampiran: '.$doc->file_name,
+            'documentType' => 'Lampiran Berkas ('.strtoupper($ext ?: 'File').')',
+            'status' => $status,
+            'fileUrl' => $fileUrl,
+            'downloadUrl' => $downloadUrl,
+            'submission' => $submission,
+            'lpj' => $lpj,
+            'format' => $format,
+            'isBemOrDpm' => $submission?->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm()),
+        ]);
     }
 
     /**
@@ -142,6 +195,18 @@ class DocumentPreviewController extends Controller
     {
         $this->authorizeSubmissionAccess($submission);
         $submission->loadMissing(['ormawa', 'period', 'items', 'rundowns', 'committees', 'timelines', 'approvalSteps.role', 'approvalSteps.approver']);
+
+        $uploaded = $submission->documents()
+            ->where('type', 'proposal')
+            ->latest('id')
+            ->first();
+
+        $ext = $uploaded ? strtolower(pathinfo($uploaded->file_name, PATHINFO_EXTENSION)) : 'docx';
+        $format = match ($ext) {
+            'pdf' => 'pdf',
+            'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg' => 'image',
+            default => 'docx',
+        };
 
         $fileUrl = route('documents.preview.proposal.file', $submission);
         $downloadUrl = route('documents.preview.proposal.file', $submission);
@@ -154,6 +219,7 @@ class DocumentPreviewController extends Controller
             'downloadUrl' => $downloadUrl,
             'submission' => $submission,
             'lpj' => null,
+            'format' => $format,
             'isBemOrDpm' => $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm()),
         ]);
     }
@@ -177,6 +243,7 @@ class DocumentPreviewController extends Controller
             'downloadUrl' => $downloadUrl,
             'submission' => $submission,
             'lpj' => null,
+            'format' => 'docx',
             'isBemOrDpm' => true,
         ]);
     }
@@ -201,6 +268,7 @@ class DocumentPreviewController extends Controller
             'downloadUrl' => $downloadUrl,
             'submission' => $submission,
             'lpj' => null,
+            'format' => 'docx',
             'isBemOrDpm' => $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm()),
         ]);
     }
@@ -213,6 +281,17 @@ class DocumentPreviewController extends Controller
         $this->authorizeLpjAccess($lpj);
         $lpj->loadMissing(['submission.ormawa', 'period', 'items', 'documents', 'approvalSteps.role', 'approvalSteps.approver']);
 
+        $format = 'docx';
+        $reportDoc = $lpj->documents()->where('type', 'laporan')->latest('id')->first();
+        if ($reportDoc) {
+            $ext = strtolower(pathinfo($reportDoc->file_name, PATHINFO_EXTENSION));
+            if ($ext === 'pdf') {
+                $format = 'pdf';
+            } elseif (in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'], true)) {
+                $format = 'image';
+            }
+        }
+
         $fileUrl = route('documents.preview.lpj.file', $lpj);
         $downloadUrl = route('documents.preview.lpj.file', $lpj);
 
@@ -224,6 +303,7 @@ class DocumentPreviewController extends Controller
             'downloadUrl' => $downloadUrl,
             'submission' => $lpj->submission,
             'lpj' => $lpj,
+            'format' => $format,
             'isBemOrDpm' => $lpj->submission?->ormawa && ($lpj->submission->ormawa->isBem() || $lpj->submission->ormawa->isDpm()),
         ]);
     }
@@ -248,8 +328,39 @@ class DocumentPreviewController extends Controller
             'downloadUrl' => $downloadUrl,
             'submission' => $lpj->submission,
             'lpj' => $lpj,
+            'format' => 'docx',
             'isBemOrDpm' => $lpj->submission?->ormawa && ($lpj->submission->ormawa->isBem() || $lpj->submission->ormawa->isDpm()),
         ]);
+    }
+
+    protected function resolveFilePath(?string $filePath): ?string
+    {
+        if (! $filePath) {
+            return null;
+        }
+
+        if (Storage::disk('local')->exists($filePath)) {
+            return Storage::disk('local')->path($filePath);
+        }
+
+        if (Storage::disk('public')->exists($filePath)) {
+            return Storage::disk('public')->path($filePath);
+        }
+
+        $candidates = [
+            storage_path('app/'.$filePath),
+            storage_path('app/private/'.$filePath),
+            storage_path('app/public/'.$filePath),
+            public_path($filePath),
+        ];
+
+        foreach ($candidates as $cand) {
+            if (file_exists($cand)) {
+                return $cand;
+            }
+        }
+
+        return null;
     }
 
     protected function inlineResponse(string $absolutePath, string $filename): StreamedResponse
@@ -261,6 +372,9 @@ class DocumentPreviewController extends Controller
             'pdf' => 'application/pdf',
             'png' => 'image/png',
             'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            'gif' => 'image/gif',
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'doc' => 'application/msword',
             default => 'application/octet-stream',
@@ -284,6 +398,25 @@ class DocumentPreviewController extends Controller
                 fclose($stream);
             }
         }, 200, $headers);
+    }
+
+    protected function authorizeAttachmentAccess(Document|LpjDocument $doc): void
+    {
+        if ($doc instanceof Document && $doc->submission) {
+            $this->authorizeSubmissionAccess($doc->submission);
+
+            return;
+        }
+
+        if ($doc instanceof LpjDocument && $doc->lpj) {
+            $this->authorizeLpjAccess($doc->lpj);
+
+            return;
+        }
+
+        $user = Auth::user();
+        abort_unless($user instanceof User, 401);
+        abort_unless($user->hasRole('superadmin'), 403, 'Anda tidak memiliki hak akses untuk melihat lampiran ini.');
     }
 
     protected function authorizeSubmissionAccess(Submission $submission): void

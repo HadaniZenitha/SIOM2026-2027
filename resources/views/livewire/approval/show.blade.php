@@ -156,7 +156,16 @@
             <span class="text-muted small">Periksa tampilan berkas resmi sebelum memutuskan persetujuan.</span>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="siom-admin-btn siom-admin-btn-primary" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', 'docx')">
+            @php
+                $uploadedProposal = $submission->documents()->where('type', 'proposal')->latest('id')->first();
+                $propExt = $uploadedProposal ? strtolower(pathinfo($uploadedProposal->file_name, PATHINFO_EXTENSION)) : 'docx';
+                $propFormat = match ($propExt) {
+                    'pdf' => 'pdf',
+                    'png', 'jpg', 'jpeg', 'webp' => 'png',
+                    default => 'docx',
+                };
+            @endphp
+            <button type="button" class="siom-admin-btn siom-admin-btn-primary" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', '{{ $propFormat }}')">
                 <i class="bi bi-eye"></i> Preview Dokumen Proposal
             </button>
             @if ($submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm()))

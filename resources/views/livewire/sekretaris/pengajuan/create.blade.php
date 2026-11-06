@@ -48,6 +48,7 @@
 
         .siom-proposal *,
         .siom-proposal *::before,
+
         .siom-proposal *::after { box-sizing: border-box; }
 
         .siom-proposal .container {
@@ -491,10 +492,16 @@
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom">
             <div>
                 <h3 class="fw-bold text-dark mb-1">Pengajuan Kegiatan Baru</h3>
-                <p class="text-muted mb-0">
-                    <span class="badge bg-primary-subtle text-primary fw-medium me-1">{{ $ormawa->name }}</span>
-                    <span class="text-secondary">· Periode {{ $period->name }}</span>
-                </p>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                    <span class="badge bg-primary-subtle text-primary fw-medium">{{ $ormawa->name }}</span>
+                    <span class="text-secondary small">· Periode {{ $period->name }}</span>
+                    <span class="text-secondary small">·</span>
+                    <a href="{{ route('sekretaris.logo') }}" target="_blank" class="badge text-decoration-none d-inline-flex align-items-center gap-1 border border-dark text-dark {{ $ormawa->hasCustomLogo() ? 'bg-success-subtle' : 'bg-warning-subtle' }}" title="Atur posisi & framing logo cover secara presisi">
+                        <img src="{{ $ormawa->logoUrl() }}" alt="Logo" style="width: 14px; height: 14px; border-radius: 50%; object-fit: contain;">
+                        <span>Logo Cover: {{ $ormawa->hasCustomLogo() ? 'Kustom' : 'Default' }}</span>
+                        <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.65rem;"></i>
+                    </a>
+                </div>
             </div>
             <div class="mt-3 mt-md-0 text-md-end">
                 <small class="text-muted d-block">{{ $sourceType === 'upload' ? 'Total Anggaran Proposal' : 'Estimasi Total RAB' }}</small>

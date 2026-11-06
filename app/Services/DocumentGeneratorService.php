@@ -7,6 +7,7 @@ use App\Models\DocumentTemplate;
 use App\Models\Lpj;
 use App\Models\LpjApprovalStep;
 use App\Models\OrganizationMember;
+use App\Models\Ormawa;
 use App\Models\Submission;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -241,11 +242,12 @@ class DocumentGeneratorService
         ]);
 
         $ormawa = $submission->ormawa;
+        $isBem  = $ormawa && ($ormawa->isBem() || $ormawa->isDpm());
 
         // Tentukan kategori ormawa untuk pemilihan template (BEM & DPM = 'bem', HIMA & lainnya = 'hima')
         $ormawaCategory = null;
         if ($ormawa) {
-            $ormawaCategory = ($ormawa->isBem() || $ormawa->isDpm()) ? 'bem' : 'hima';
+            $ormawaCategory = $isBem ? 'bem' : 'hima';
         }
 
         // Cari template yang paling tepat sesuai spesifikasi nama dokumen:
@@ -356,6 +358,9 @@ class DocumentGeneratorService
         $this->replaceWithNumberedList($processor, 'objectives', $submission->objectives);
         $this->replaceWithNumberedList($processor, 'benefits', $submission->benefits);
 
+        /* 1.1 LOGO ORMAWA COVER */
+        $this->injectOrmawaLogo($processor, $ormawa);
+
         /* 2. TIMELINE 4 TAHAP */
         $timelines = $submission->timelines;
         $plan    = $timelines->where('stage', 'perencanaan')->first();
@@ -409,8 +414,11 @@ class DocumentGeneratorService
         /* 4. TABEL DINAMIS RUNDOWN */
         if ($submission->rundowns->count() > 0) {
             $rundownRows = [];
-            foreach ($submission->rundowns as $rundown) {
+            foreach ($submission->rundowns as $index => $rundown) {
                 $rundownRows[] = [
+                    'rundown_no' => $index + 1,
+                    'no'         => $index + 1,
+                    'urut'       => $index + 1,
                     'day_date'   => $rundown->day_date ?? 'Hari Pertama',
                     'time_slot'  => $rundown->time_slot ?? '-',
                     'event_name' => $rundown->event_name ?? '-',
@@ -421,11 +429,24 @@ class DocumentGeneratorService
             $this->safeCloneRowAndSetValues($processor, 'event_name', $rundownRows);
         }
 
+        // Pastikan tidak ada residual ${day_date} yang tersisa di template manapun
+        try {
+            $processor->setValue('day_date', '');
+        } catch (\Throwable $e) {
+        }
+
         /* 5. TABEL DINAMIS PANITIA */
         if ($submission->committees->count() > 0) {
+            $isBemProposal = $isBem && $type === 'proposal';
+            $committeeStartNo = $isBemProposal ? 4 : 6;
+
             $committeeRows = [];
-            foreach ($submission->committees as $committee) {
+            foreach ($submission->committees as $index => $committee) {
+                $committeeNo = $committeeStartNo + $index;
                 $committeeRows[] = [
+                    'committee_no'    => $committeeNo,
+                    'no'              => $committeeNo,
+                    'urut'            => $committeeNo,
                     'committee_name'  => $committee->name ?? '-',
                     'structural_role' => $committee->structural_role ?? 'Mahasiswa',
                     'committee_role'  => $committee->committee_role ?? '-',
@@ -433,6 +454,12 @@ class DocumentGeneratorService
                 ];
             }
             $this->safeCloneRowAndSetValues($processor, 'committee_name', $committeeRows);
+        }
+
+        // Pastikan tidak ada residual ${no} yang tertinggal di dokumen
+        try {
+            $processor->setValue('no', '');
+        } catch (\Throwable $e) {
         }
 
         /* 6. PEJABAT & PENANDATANGAN — sesuai kategori ormawa */
@@ -1021,5 +1048,51 @@ class DocumentGeneratorService
         $unitStr = trim((string) ($unit ?? ''));
 
         return $unitStr !== '' ? "{$formattedQty} {$unitStr}" : $formattedQty;
+    }
+
+    /**
+     * Sisipkan logo ORMAWA ke placeholder cover ${ormawa_logo} secara proporsional.
+     */
+    protected function injectOrmawaLogo(TemplateProcessor $processor, ?Ormawa $ormawa): void
+    {
+        $variables = $processor->getVariables();
+        if (! in_array('ormawa_logo', $variables, true)) {
+            return;
+        }
+
+        $logoPath = null;
+        if ($ormawa && $ormawa->hasCustomLogo()) {
+            $candidate = Storage::disk('public')->path($ormawa->logo);
+            if (file_exists($candidate)) {
+                $logoPath = $candidate;
+            }
+        }
+
+        if (! $logoPath) {
+            $defaultLogo = public_path('images/default-ormawa-logo.png');
+            if (file_exists($defaultLogo)) {
+                $logoPath = $defaultLogo;
+            }
+        }
+
+        if ($logoPath && file_exists($logoPath)) {
+            try {
+                $processor->setImageValue('ormawa_logo', [
+                    'path'   => $logoPath,
+                    'width'  => 130,
+                    'height' => 130,
+                    'ratio'  => true,
+                ]);
+
+                return;
+            } catch (\Throwable $e) {
+                // Jangan gagalkan pembuatan dokumen jika terjadi kendala pada gambar
+            }
+        }
+
+        try {
+            $processor->setValue('ormawa_logo', '');
+        } catch (\Throwable $e) {
+        }
     }
 }

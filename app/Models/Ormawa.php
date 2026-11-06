@@ -16,6 +16,7 @@ class Ormawa extends Model
         'type',
         'program_studi_id',
         'description',
+        'logo',
         'is_active',
     ];
 
@@ -26,6 +27,20 @@ class Ormawa extends Model
     public function programStudi()
     {
         return $this->belongsTo(ProgramStudi::class);
+    }
+
+    public function hasCustomLogo(): bool
+    {
+        return ! empty($this->logo) && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->logo);
+    }
+
+    public function logoUrl(): string
+    {
+        if ($this->hasCustomLogo()) {
+            return asset('storage/'.$this->logo);
+        }
+
+        return asset('images/default-ormawa-logo.png');
     }
 
     public function users()

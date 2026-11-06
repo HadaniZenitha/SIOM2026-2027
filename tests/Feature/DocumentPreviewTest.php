@@ -2,6 +2,7 @@
 
 use App\Models\Document;
 use App\Models\Lpj;
+use App\Models\LpjDocument;
 use App\Models\Ormawa;
 use App\Models\Period;
 use App\Models\Role;
@@ -102,7 +103,7 @@ it('allows authorized secretary to view proposal preview page', function () {
         ->get(route('documents.preview.proposal', $fixture['submission']->id))
         ->assertOk()
         ->assertSee('Seminar Teknologi 2026')
-        ->assertSee('HIMA S1 Informatika');
+        ->assertSee('HIMA S1 INFORMATIKA');
 });
 
 it('allows authorized secretary to view lpj preview page', function () {
@@ -148,7 +149,7 @@ it('streams uploaded attachment file inline', function () {
         'lpj_id' => $fixture['lpj']->id,
         'file_name' => 'nota_konsumsi.png',
         'file_path' => $path,
-        'type' => 'nota',
+        'type' => 'lampiran',
         'uploaded_by' => $fixture['secretary']->id,
     ]);
 
@@ -159,6 +160,60 @@ it('streams uploaded attachment file inline', function () {
     $disposition = $response->headers->get('content-disposition');
     expect($disposition)->toContain('inline');
     expect($response->headers->get('content-type'))->toBe('image/png');
+});
+
+it('streams lpj document attachment inline for png and pdf', function () {
+    $fixture = createPreviewTestFixture();
+
+    $pngFile = UploadedFile::fake()->create('bukti_kegiatan.png', 50, 'image/png');
+    $pngPath = $pngFile->store('lpj/documents', 'local');
+
+    $lpjDocPng = LpjDocument::create([
+        'lpj_id' => $fixture['lpj']->id,
+        'file_name' => 'bukti_kegiatan.png',
+        'file_path' => $pngPath,
+        'type' => 'dokumentasi',
+    ]);
+
+    $response = $this->actingAs($fixture['secretary'])
+        ->get(route('documents.preview.attachment.file', $lpjDocPng->id));
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toBe('image/png');
+    expect($response->headers->get('content-disposition'))->toContain('inline');
+
+    // Standalone page preview for PNG
+    $pageResponse = $this->actingAs($fixture['secretary'])
+        ->get(route('documents.preview.attachment', $lpjDocPng->id));
+
+    $pageResponse->assertOk()
+        ->assertSee('Lampiran: bukti_kegiatan.png')
+        ->assertSee('Berkas Gambar (Visual)');
+
+    $pdfFile = UploadedFile::fake()->create('laporan_keuangan.pdf', 80, 'application/pdf');
+    $pdfPath = $pdfFile->store('lpj/documents', 'local');
+
+    $lpjDocPdf = LpjDocument::create([
+        'lpj_id' => $fixture['lpj']->id,
+        'file_name' => 'laporan_keuangan.pdf',
+        'file_path' => $pdfPath,
+        'type' => 'keuangan',
+    ]);
+
+    $pdfResponse = $this->actingAs($fixture['secretary'])
+        ->get(route('documents.preview.attachment.file', $lpjDocPdf->id));
+
+    $pdfResponse->assertOk();
+    expect($pdfResponse->headers->get('content-type'))->toBe('application/pdf');
+    expect($pdfResponse->headers->get('content-disposition'))->toContain('inline');
+
+    // Standalone page preview for PDF
+    $pdfPageResponse = $this->actingAs($fixture['secretary'])
+        ->get(route('documents.preview.attachment', $lpjDocPdf->id));
+
+    $pdfPageResponse->assertOk()
+        ->assertSee('Lampiran: laporan_keuangan.pdf')
+        ->assertSee('Dokumen PDF (Visual)');
 });
 
 it('restricts signed document preview to approved status only', function () {
