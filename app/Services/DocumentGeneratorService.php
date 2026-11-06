@@ -487,217 +487,99 @@ class DocumentGeneratorService
         /* 7. PLACEHOLDER LPJ KHUSUS (foto/kwitansi) — isi dengan teks kosong jika tidak ada */
         $variables = $processor->getVariables();
 
-        /* SCAN NOTA KEGIATAN LPJ */
+        /* 7. LAMPIRAN DOKUMENTASI KEGIATAN LPJ (Tabel Lampiran 4) */
         if ($type === 'lpj' && $lpj) {
-
-            $receipts = $lpj->documents()
-                ->where('type', 'nota')
-                ->get()
-                ->filter(function ($document) {
-
-                    $extension = strtolower(
-                        pathinfo($document->file_name, PATHINFO_EXTENSION)
-                    );
-
-                    return in_array(
-                        $extension,
-                        ['jpg', 'jpeg', 'png'],
-                        true
-                    ) && Storage::disk('local')->exists($document->file_path);
-                })
-                ->values();
-
-            // Kelompokkan dua nota dalam satu baris
-            $receiptRows = $receipts->chunk(2);
-
-            if ($receiptRows->isNotEmpty()) {
-
-                // Clone baris tabel berdasarkan jumlah kelompok nota
-                $processor->cloneRow(
-                    'receipt_scan_left',
-                    $receiptRows->count()
-                );
-
-                foreach ($receiptRows as $index => $row) {
-
-                    $number = $index + 1;
-
-                    $left = $row->get(0);
-                    $right = $row->get(1);
-
-                    // NOTA KIRI
-                    if ($left) {
-
-                        $processor->setImageValue(
-                            "receipt_scan_left#{$number}",
-                            [
-                                'path' => Storage::disk('local')->path(
-                                    $left->file_path
-                                ),
-                                'width' => 220,
-                                'height' => 165,
-                                'ratio' => true,
-                            ]
-                        );
-
-                        $processor->setValue(
-                            "receipt_amount_left#{$number}",
-                            '-'
-                        );
-
-                        $processor->setValue(
-                            "receipt_caption_left#{$number}",
-                            $left->file_name
-                        );
-                    } else {
-
-                        $processor->setValue(
-                            "receipt_scan_left#{$number}",
-                            ''
-                        );
-
-                        $processor->setValue(
-                            "receipt_amount_left#{$number}",
-                            ''
-                        );
-
-                        $processor->setValue(
-                            "receipt_caption_left#{$number}",
-                            ''
-                        );
-                    }
-
-                    // NOTA KANAN
-                    if ($right) {
-
-                        $processor->setImageValue(
-                            "receipt_scan_right#{$number}",
-                            [
-                                'path' => Storage::disk('local')->path(
-                                    $right->file_path
-                                ),
-                                'width' => 220,
-                                'height' => 165,
-                                'ratio' => true,
-                            ]
-                        );
-
-                        $processor->setValue(
-                            "receipt_amount_right#{$number}",
-                            '-'
-                        );
-
-                        $processor->setValue(
-                            "receipt_caption_right#{$number}",
-                            $right->file_name
-                        );
-                    } else {
-
-                        $processor->setValue(
-                            "receipt_scan_right#{$number}",
-                            ''
-                        );
-
-                        $processor->setValue(
-                            "receipt_amount_right#{$number}",
-                            ''
-                        );
-
-                        $processor->setValue(
-                            "receipt_caption_right#{$number}",
-                            ''
-                        );
-                    }
-                }
-            } else {
-
-                // Jika tidak ada nota gambar
-                $processor->setValue('receipt_scan_left', '');
-                $processor->setValue('receipt_scan_right', '');
-
-                $processor->setValue('receipt_amount_left', '');
-                $processor->setValue('receipt_amount_right', '');
-
-                $processor->setValue('receipt_caption_left', '');
-                $processor->setValue('receipt_caption_right', '');
-            }
-        }
-
-        if ($type === 'lpj' && $lpj) {
-
             $documentation = $lpj->documents()
                 ->where('type', 'dokumentasi')
                 ->get()
-                ->filter(function ($document) {
-                    $extension = strtolower(
-                        pathinfo($document->file_name, PATHINFO_EXTENSION)
-                    );
-
-                    return in_array($extension, ['jpg', 'jpeg', 'png'], true)
-                        && Storage::disk('local')->exists($document->file_path);
+                ->filter(function ($doc) {
+                    return Storage::disk('local')->exists($doc->file_path);
                 })
                 ->values();
 
-            // Kelompokkan dua foto untuk setiap baris
-            $rows = $documentation->chunk(2);
+            if (in_array('photo', $variables, true)) {
+                if ($documentation->isNotEmpty()) {
+                    $processor->cloneRow('photo', $documentation->count());
 
-            if ($rows->isNotEmpty()) {
+                    foreach ($documentation as $index => $doc) {
+                        $num = $index + 1;
+                        $ext = strtolower(pathinfo($doc->file_name, PATHINFO_EXTENSION));
+                        $isImage = in_array($ext, ['jpg', 'jpeg', 'png'], true);
+                        $caption = $doc->file_name;
 
-                $processor->cloneRow(
-                    'documentation_left',
-                    $rows->count()
-                );
+                        if ($isImage) {
+                            $processor->setImageValue("photo#{$num}", [
+                                'path'   => Storage::disk('local')->path($doc->file_path),
+                                'width'  => 240,
+                                'height' => 180,
+                                'ratio'  => true,
+                            ]);
+                        } else {
+                            $processor->setValue("photo#{$num}", "[Berkas: {$doc->file_name}]");
+                        }
 
-                foreach ($rows as $index => $images) {
-
-                    $rowNumber = $index + 1;
-
-                    $left = $images->get(0);
-                    $right = $images->get(1);
-
-                    // Foto kiri
-                    if ($left) {
-                        $processor->setImageValue(
-                            "documentation_left#{$rowNumber}",
-                            [
-                                'path' => Storage::disk('local')->path(
-                                    $left->file_path
-                                ),
-                                'width' => 220,
-                                'height' => 165,
-                                'ratio' => true,
-                            ]
-                        );
-                    } else {
-                        $processor->setValue(
-                            "documentation_left#{$rowNumber}",
-                            ''
-                        );
+                        $processor->setValue("photo_caption#{$num}", $caption);
                     }
-
-                    // Foto kanan
-                    if ($right) {
-                        $processor->setImageValue(
-                            "documentation_right#{$rowNumber}",
-                            [
-                                'path' => Storage::disk('local')->path(
-                                    $right->file_path
-                                ),
-                                'width' => 220,
-                                'height' => 165,
-                                'ratio' => true,
-                            ]
-                        );
-                    } else {
-                        $processor->setValue(
-                            "documentation_right#{$rowNumber}",
-                            ''
-                        );
-                    }
+                } else {
+                    $processor->setValue('photo', '-');
+                    $processor->setValue('photo_caption', '-');
                 }
-            } else {
-                $processor->setValue('documentation_left', '');
-                $processor->setValue('documentation_right', '');
+            }
+
+            // Bersihkan placeholder sisa jika ada template lawas yang memakai documentation_left/right
+            foreach (['documentation_left', 'documentation_right'] as $var) {
+                if (in_array($var, $variables, true)) {
+                    $processor->setValue($var, '');
+                }
+            }
+        }
+
+        /* 8. LAMPIRAN SCAN NOTA KEGIATAN LPJ (Tabel Lampiran 5) */
+        if ($type === 'lpj' && $lpj) {
+            $receipts = $lpj->documents()
+                ->where('type', 'nota')
+                ->get()
+                ->filter(function ($doc) {
+                    return Storage::disk('local')->exists($doc->file_path);
+                })
+                ->values();
+
+            if (in_array('receipt_scan', $variables, true)) {
+                if ($receipts->isNotEmpty()) {
+                    $processor->cloneRow('receipt_scan', $receipts->count());
+
+                    foreach ($receipts as $index => $doc) {
+                        $num = $index + 1;
+                        $ext = strtolower(pathinfo($doc->file_name, PATHINFO_EXTENSION));
+                        $isImage = in_array($ext, ['jpg', 'jpeg', 'png'], true);
+                        $caption = $doc->file_name;
+
+                        if ($isImage) {
+                            $processor->setImageValue("receipt_scan#{$num}", [
+                                'path'   => Storage::disk('local')->path($doc->file_path),
+                                'width'  => 240,
+                                'height' => 180,
+                                'ratio'  => true,
+                            ]);
+                        } else {
+                            $processor->setValue("receipt_scan#{$num}", "[Berkas: {$doc->file_name}]");
+                        }
+
+                        $processor->setValue("receipt_caption#{$num}", $caption);
+                        $processor->setValue("receipt_amount#{$num}", '-');
+                    }
+                } else {
+                    $processor->setValue('receipt_scan', '-');
+                    $processor->setValue('receipt_caption', '-');
+                    $processor->setValue('receipt_amount', '-');
+                }
+            }
+
+            // Bersihkan placeholder sisa jika ada template lawas yang memakai receipt_scan_left/right
+            foreach (['receipt_scan_left', 'receipt_scan_right', 'receipt_caption_left', 'receipt_caption_right', 'receipt_amount_left', 'receipt_amount_right'] as $var) {
+                if (in_array($var, $variables, true)) {
+                    $processor->setValue($var, '');
+                }
             }
         }
 

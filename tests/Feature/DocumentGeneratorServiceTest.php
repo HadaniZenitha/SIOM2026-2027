@@ -703,3 +703,87 @@ test('tanda tangan approver hanya muncul di dokumen setelah role tersebut menyet
     // Sekarang 2 tanda tangan tersemat karena keduanya sudah ACC
     expect($media2)->toBe(2);
 });
+
+it('populates LPJ documentation and receipt scans into appendix tables cleanly', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+
+    $fixture = createDocumentGenerationFixture();
+    $lpj = Lpj::create([
+        'submission_id' => $fixture['submission']->id,
+        'period_id' => $fixture['period']->id,
+        'ormawa_id' => $fixture['ormawa']->id,
+        'created_by' => $fixture['submitter']->id,
+        'title' => 'LPJ '.$fixture['submission']->activity_name,
+        'status' => 'draft',
+    ]);
+
+    // Create 1x1 png image for testing
+    $pngContent = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    $photoPath = 'lpj/test/photo1.png';
+    $receiptPath = 'lpj/test/receipt1.png';
+    Storage::disk('local')->put($photoPath, $pngContent);
+    Storage::disk('local')->put($receiptPath, $pngContent);
+
+    $lpj->documents()->create([
+        'type' => 'dokumentasi',
+        'file_name' => 'Foto Kegiatan 1.png',
+        'file_path' => $photoPath,
+    ]);
+    $lpj->documents()->create([
+        'type' => 'nota',
+        'file_name' => 'Nota Pembelian 1.png',
+        'file_path' => $receiptPath,
+    ]);
+
+    // Create dummy template with appendix tables
+    $phpWord = new PhpWord;
+    $section = $phpWord->addSection();
+    $section->addText('K. DOKUMENTASI KEGIATAN. (Terlampir)');
+    $section->addText('L. SCAN NOTA KEGIATAN. (Terlampir)');
+    $section->addText('Demikian Proposal Kegiatan ${activity_name} kami susun.');
+
+    // Table Lampiran 4
+    $tablePhoto = $section->addTable();
+    $tablePhoto->addRow();
+    $tablePhoto->addCell(2000)->addText('${photo}');
+    $tablePhoto->addCell(2000)->addText('${photo_caption}');
+
+    // Table Lampiran 5
+    $tableReceipt = $section->addTable();
+    $tableReceipt->addRow();
+    $tableReceipt->addCell(2000)->addText('${receipt_scan}');
+    $tableReceipt->addCell(2000)->addText('${receipt_caption}');
+    $tableReceipt->addCell(2000)->addText('${receipt_amount}');
+
+    $templatePath = 'document-templates/lpj_custom.docx';
+    $absPath = Storage::disk('public')->path($templatePath);
+    @mkdir(dirname($absPath), 0777, true);
+    $phpWord->save($absPath, 'Word2007');
+
+    DocumentTemplate::create([
+        'name' => 'Template LPJ Test',
+        'type' => 'lpj',
+        'ormawa_category' => 'bem',
+        'file_path' => $templatePath,
+        'file_name' => 'lpj_custom.docx',
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'is_active' => true,
+    ]);
+
+    $generator = app(DocumentGeneratorService::class);
+    $outPath = $generator->generateLpj($lpj);
+
+    $archive = new ZipArchive;
+    expect($archive->open(Storage::disk('public')->path($outPath)))->toBeTrue();
+    $xml = $archive->getFromName('word/document.xml');
+    $archive->close();
+
+    $clean = strip_tags($xml);
+    expect($clean)->not->toContain('${photo}')
+        ->and($clean)->not->toContain('${receipt_scan}')
+        ->and($clean)->not->toContain('${receipt_amount}')
+        ->and($clean)->toContain('Foto Kegiatan 1.png')
+        ->and($clean)->toContain('Nota Pembelian 1.png');
+});
