@@ -13,17 +13,18 @@ it('seeds each ormawa and program studi and remains idempotent when run repeated
     expect(Ormawa::query()->orderBy('code')->pluck('code')->all())
         ->toBe([
             'BEM',
+            'DENSTISTRY',
             'DPM',
+            'HIMADAN',
+            'HIMAFAR',
+            'HIMAFIS',
+            'HIMAKEP',
             'HIMAKU',
+            'HIMANERS',
+            'HIMARMIK',
             'HIMATIF',
-            'HIMA_ANESTESI',
-            'HIMA_D3_FAR',
-            'HIMA_D3_KEP',
-            'HIMA_D3_RMIK',
-            'HIMA_KEBIDANAN',
-            'HIMA_S1_FAR',
-            'HIMA_S1_FISIO',
-            'HIMA_S1_KG',
+            'HIMKANES',
+            'HIMS1FAR',
             'UKM_AMICI_ET_FIDEI',
             'UKM_GITA_CAHYA',
             'UKM_KSR_PMI',
@@ -36,12 +37,12 @@ it('seeds each ormawa and program studi and remains idempotent when run repeated
             'UKM_TEATER_SARAF',
             'UKM_TENIS_MEJA',
         ])
-        ->and(Ormawa::query()->count())->toBe(23)
-        ->and(ProgramStudi::query()->count())->toBe(10);
+        ->and(Ormawa::query()->count())->toBe(24)
+        ->and(ProgramStudi::query()->count())->toBe(11);
 
-    // Pastikan seluruh 10 HIMA bertipe hima dan terhubung dengan Program Studi masing-masing
+    // Pastikan seluruh 11 HIMA bertipe hima dan terhubung dengan Program Studi masing-masing
     $himas = Ormawa::query()->where('type', 'hima')->with('programStudi')->get();
-    expect($himas)->toHaveCount(10);
+    expect($himas)->toHaveCount(11);
 
     foreach ($himas as $hima) {
         expect($hima->isHima())->toBeTrue()

@@ -83,8 +83,16 @@
             <p class="mb-3">{{ $lpj->description }}</p>
             <div class="siom-doc-list">
                 @foreach ($lpj->documents as $document)
+                    @php
+                        $docExt = strtolower(pathinfo($document->file_name, PATHINFO_EXTENSION));
+                        $docFormat = match ($docExt) {
+                            'pdf' => 'pdf',
+                            'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg' => 'png',
+                            default => 'docx',
+                        };
+                    @endphp
                     <div class="d-flex align-items-center gap-2 mb-1">
-                        <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.attachment.file', $document->id) }}', '{{ route('documents.preview.attachment.file', $document->id) }}', 'Lampiran: {{ addslashes($document->file_name) }}', '{{ str_ends_with(strtolower($document->file_name), '.pdf') ? 'pdf' : 'docx' }}')">
+                        <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.attachment.file', $document->id) }}', '{{ route('documents.preview.attachment', $document->id) }}', 'Lampiran: {{ addslashes($document->file_name) }}', '{{ $docFormat }}')">
                             <i class="bi bi-eye"></i> Lihat {{ $document->file_name }}
                         </button>
                         <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="download({{ $document->id }})" title="Unduh">

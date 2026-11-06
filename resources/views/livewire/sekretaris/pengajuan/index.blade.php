@@ -135,8 +135,15 @@
                                         @if (! in_array($submission->status, ['draft'], true))
                                             @php
                                                 $isBemOrDpm = $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm());
+                                                $uploadedProposal = $submission->documents ? $submission->documents->where('type', 'proposal')->last() : null;
+                                                $propExt = $uploadedProposal ? strtolower(pathinfo($uploadedProposal->file_name, PATHINFO_EXTENSION)) : 'docx';
+                                                $propFormat = match ($propExt) {
+                                                    'pdf' => 'pdf',
+                                                    'png', 'jpg', 'jpeg', 'webp' => 'png',
+                                                    default => 'docx',
+                                                };
                                             @endphp
-                                            <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', 'docx')" title="Lihat Pratinjau Proposal">
+                                            <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', '{{ $propFormat }}')" title="Lihat Pratinjau Proposal">
                                                 <i class="bi bi-eye"></i> Preview
                                             </button>
                                             @if ($isBemOrDpm)
@@ -214,8 +221,15 @@
                             @if (! in_array($status, ['draft'], true))
                                 @php
                                     $isBemOrDpm = $submission->ormawa && ($submission->ormawa->isBem() || $submission->ormawa->isDpm());
+                                    $uploadedProposal = $submission->documents ? $submission->documents->where('type', 'proposal')->last() : null;
+                                    $propExt = $uploadedProposal ? strtolower(pathinfo($uploadedProposal->file_name, PATHINFO_EXTENSION)) : 'docx';
+                                    $propFormat = match ($propExt) {
+                                        'pdf' => 'pdf',
+                                        'png', 'jpg', 'jpeg', 'webp' => 'png',
+                                        default => 'docx',
+                                    };
                                 @endphp
-                                <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', 'docx')">
+                                <button type="button" class="siom-admin-btn siom-admin-btn-sm" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;" onclick="window.openDocPreview('{{ route('documents.preview.proposal.file', $submission->id) }}', '{{ route('documents.preview.proposal', $submission->id) }}', 'Proposal: {{ addslashes($submission->activity_name) }}', '{{ $propFormat }}')">
                                     <i class="bi bi-eye"></i> Preview
                                 </button>
                                 @if ($isBemOrDpm)

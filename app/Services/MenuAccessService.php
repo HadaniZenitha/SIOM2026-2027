@@ -22,6 +22,7 @@ class MenuAccessService
             'admin.template-dokumen' => ['label' => 'Template Dokumen', 'route' => 'admin.template-dokumen', 'icon' => 'bi-file-earmark-word', 'roles' => ['superadmin']],
             'admin.landing-info' => ['label' => 'Informasi Kemahasiswaan', 'route' => 'admin.kemahasiswaan-info', 'icon' => 'bi-megaphone', 'roles' => ['superadmin']],
             'sekretaris.anggota' => ['label' => 'Anggota', 'route' => 'sekretaris.anggota', 'icon' => 'bi-person-vcard', 'roles' => ['sekretaris_ormawa']],
+            'sekretaris.logo' => ['label' => 'Logo ORMAWA', 'route' => 'sekretaris.logo', 'icon' => 'bi-image', 'roles' => ['sekretaris_ormawa']],
             'sekretaris.pengajuan' => ['label' => 'Pengajuan Dana', 'route' => 'sekretaris.pengajuan', 'icon' => 'bi-send', 'roles' => ['sekretaris_ormawa']],
             'sekretaris.notulensi' => ['label' => 'Notulensi', 'route' => 'sekretaris.notulensi', 'icon' => 'bi-journal-text', 'roles' => ['sekretaris_ormawa']],
             'sekretaris.kas' => ['label' => 'Kas ORMAWA', 'route' => 'sekretaris.kas', 'icon' => 'bi-wallet2', 'roles' => ['sekretaris_ormawa']],

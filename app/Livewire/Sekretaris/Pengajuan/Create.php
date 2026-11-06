@@ -3,6 +3,8 @@
 namespace App\Livewire\Sekretaris\Pengajuan;
 
 use App\Models\Document;
+use App\Models\OrganizationDivision;
+use App\Models\OrganizationMember;
 use App\Models\Ormawa;
 use App\Models\Period;
 use App\Models\Submission;
@@ -53,6 +55,16 @@ class Create extends Component
     public string $activity_type = '';
 
     public string $divisi_name = '';
+
+    public bool $showDivisionModal = false;
+
+    public string $new_division_name = '';
+
+    public ?int $activeCommitteeIndexForNewDivision = null;
+
+    public array $manualCommitteeRoles = [];
+
+    public array $manualCommitteeNames = [];
 
     public ?string $meeting_date = null;
 
@@ -915,8 +927,104 @@ class Create extends Component
         ];
     }
 
+    public function openDivisionModal(?int $committeeIndex = null): void
+    {
+        $this->resetValidation('new_division_name');
+        $this->new_division_name = '';
+        $this->activeCommitteeIndexForNewDivision = $committeeIndex;
+        $this->showDivisionModal = true;
+    }
+
+    public function closeDivisionModal(): void
+    {
+        $this->resetValidation('new_division_name');
+        $this->new_division_name = '';
+        $this->activeCommitteeIndexForNewDivision = null;
+        $this->showDivisionModal = false;
+    }
+
+    public function saveDivision(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+        abort_unless($this->ormawa, 403, 'Data ORMAWA tidak ditemukan.');
+
+        $this->new_division_name = trim($this->new_division_name);
+
+        $this->validate([
+            'new_division_name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('organization_divisions', 'name')
+                    ->where('ormawa_id', $this->ormawa->id),
+            ],
+        ], [
+            'new_division_name.required' => 'Nama divisi wajib diisi.',
+            'new_division_name.max' => 'Nama divisi maksimal 255 karakter.',
+            'new_division_name.unique' => 'Divisi ini sudah terdaftar di ORMAWA Anda.',
+        ]);
+
+        $division = OrganizationDivision::create([
+            'ormawa_id' => $this->ormawa->id,
+            'name' => $this->new_division_name,
+        ]);
+
+        if ($this->activeCommitteeIndexForNewDivision !== null && isset($this->committees[$this->activeCommitteeIndexForNewDivision])) {
+            $this->committees[$this->activeCommitteeIndexForNewDivision]['committee_role'] = $division->name;
+        }
+
+        $createdName = $division->name;
+        $this->closeDivisionModal();
+
+        session()->flash('division_success', 'Divisi "'.$createdName.'" berhasil ditambahkan.');
+    }
+
+    public function deleteDivision(int $divisionId): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+        abort_unless($this->ormawa, 403);
+
+        $division = $this->ormawa->divisions()->findOrFail($divisionId);
+
+        if ($division->members()->exists()) {
+            throw ValidationException::withMessages([
+                'new_division_name' => 'Divisi tidak dapat dihapus selama masih digunakan oleh data anggota.',
+            ]);
+        }
+
+        $deletedName = $division->name;
+        $division->delete();
+
+        foreach ($this->committees as $k => $c) {
+            if (($c['committee_role'] ?? '') === $deletedName) {
+                $this->committees[$k]['committee_role'] = '';
+            }
+        }
+
+        session()->flash('division_success', 'Divisi "'.$deletedName.'" berhasil dihapus.');
+    }
+
     public function render(): View
     {
-        return view('livewire.sekretaris.pengajuan.create');
+        $divisions = $this->ormawa
+            ? $this->ormawa->divisions()->orderBy('name')->get()
+            : collect();
+
+        $ormawaMembersForDropdown = ($this->ormawa && $this->period)
+            ? OrganizationMember::query()
+                ->where('ormawa_id', $this->ormawa->id)
+                ->where('period_id', $this->period->id)
+                ->where('status', 'active')
+                ->with('division:id,name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'nim', 'position', 'organization_division_id'])
+            : collect();
+
+        return view('livewire.sekretaris.pengajuan.create', [
+            'divisions' => $divisions,
+            'ormawaMembersForDropdown' => $ormawaMembersForDropdown,
+        ]);
     }
 }
