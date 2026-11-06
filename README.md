@@ -211,7 +211,7 @@ Sistem telah dilengkapi data awal (*demo seeders*) dengan password default: `pas
 | **Sekretaris DPM** | `sekretaris.dpm@siom.test` | `password` | Dewan Perwakilan Mahasiswa |
 | **Pembina Ormawa** | `pembina@siom.test` | `password` | Dosen Pembina (Tahap 1 Approval) |
 | **Kaprodi IF** | `kaprodi@siom.test` | `password` | Kaprodi Informatika (Tahap 2 Approval HIMA) |
-| **Kabag BKA** | `kabag@siom.test` | `password` | Biro Kemahasiswaan & Alumni |
+| **Kabag BKA** | `kabag@siom.test` | `password` | Bagian Kemahasiswaan & Alumni |
 | **Wakil Rektor III**| `warek@siom.test` | `password` | Persetujuan Akhir (ACC Final) |
 
 > 💡 **Tip:** Di halaman login (`/login`), Anda dapat menggunakan fitur **1-Klik Demo Login** untuk beralih peran dengan cepat saat pengujian.
@@ -262,7 +262,7 @@ SIOM2026-2027/
 
 ## 📄 Kontributor & Lisensi
 
-Dikembangkan oleh **Tim RnD UPTI & Biro Kemahasiswaan & Alumni (BKA)** — **ITSK RS dr. Soepraoen Malang** untuk memajukan tata kelola organisasi mahasiswa yang transparan, terukur, dan akuntabel.
+Dikembangkan oleh **Tim RnD UPTI & Bagian Kemahasiswaan & Alumni (BKA)** — **ITSK RS dr. Soepraoen Malang** untuk memajukan tata kelola organisasi mahasiswa yang transparan, terukur, dan akuntabel.
 
 Proyek ini dilisensikan di bawah [MIT License](LICENSE).
 
@@ -278,7 +278,7 @@ Sistem telah dilengkapi data awal (*demo seeders*) dengan password default: `pas
 | **Sekretaris DPM** | `sekretaris.dpm@siom.test` | `password` | Dewan Perwakilan Mahasiswa |
 | **Pembina Ormawa** | `pembina@siom.test` | `password` | Dosen Pembina (Tahap 1 Approval) |
 | **Kaprodi IF** | `kaprodi@siom.test` | `password` | Kaprodi Informatika (Tahap 2 Approval HIMA) |
-| **Kabag BKA** | `kabag@siom.test` | `password` | Biro Kemahasiswaan & Alumni |
+| **Kabag BKA** | `kabag@siom.test` | `password` | Bagian Kemahasiswaan & Alumni |
 | **Wakil Rektor III**| `warek@siom.test` | `password` | Persetujuan Akhir (ACC Final) |
 
 > 💡 **Tip:** Di halaman login (`/login`), Anda dapat menggunakan fitur **1-Klik Demo Login** untuk beralih peran dengan cepat saat pengujian.

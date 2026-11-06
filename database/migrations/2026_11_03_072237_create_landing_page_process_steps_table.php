@@ -42,7 +42,7 @@ return new class extends Migration
             ],
             [
                 'title' => 'Validasi anggaran dan pagu',
-                'description' => 'Biro Kemahasiswaan memeriksa ketersediaan pagu dan kelayakan anggaran kegiatan.',
+                'description' => 'Bagian Kemahasiswaan memeriksa ketersediaan pagu dan kelayakan anggaran kegiatan.',
                 'sort_order' => 3,
                 'is_published' => true,
                 'created_at' => $timestamp,

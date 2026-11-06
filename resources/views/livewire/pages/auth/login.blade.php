@@ -78,7 +78,7 @@ new #[Layout('layouts.guest')] class extends Component
         <div class="siom-login-brand-footer">
             <i class="bi bi-building-check"></i>
             <div class="siom-login-brand-footer-text">
-                <strong>Biro Kemahasiswaan & Alumni (BKA)</strong><br>
+                <strong>Bagian Kemahasiswaan & Alumni (BKA)</strong><br>
                 Gedung Rektorat Lt. 1 • Jl. S. Supriadi No. 22 Malang
             </div>
         </div>
@@ -153,7 +153,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         <div class="siom-login-help-note">
             Belum memiliki hak akses peran atau terkendala login? <br>
-            Silakan hubungi <a href="mailto:bka@itsk-soepraoen.ac.id">Biro Kemahasiswaan & Alumni (BKA)</a>
+            Silakan hubungi <a href="mailto:bka@itsk-soepraoen.ac.id">Bagian Kemahasiswaan & Alumni (BKA)</a>
         </div>
     </div>
 </div>
