@@ -8,7 +8,6 @@ use Livewire\Volt\Component;
 new #[Layout('layouts.guest')] class extends Component
 {
     public LoginForm $form;
-    public string $selectedRole = '';
 
     /**
      * Handle an incoming authentication request.
@@ -24,17 +23,6 @@ new #[Layout('layouts.guest')] class extends Component
         Session::forget('url.intended');
 
         $this->redirect(route('dashboard', absolute: false), navigate: true);
-    }
-
-    /**
-     * Quick fill demo credentials for testing / competition evaluation.
-     */
-    public function fillDemo(string $email, string $role): void
-    {
-        $this->form->email = $email;
-        $this->form->password = 'password';
-        $this->selectedRole = $role;
-        $this->resetErrorBag();
     }
 }; ?>
 
@@ -96,7 +84,7 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
     </div>
 
-    <!-- RIGHT PANEL: Authentication Form & Quick Demo -->
+    <!-- RIGHT PANEL: Authentication Form -->
     <div class="siom-login-form-panel">
         <div class="siom-login-form-header">
             <span class="siom-login-form-tag">
@@ -104,39 +92,6 @@ new #[Layout('layouts.guest')] class extends Component
             </span>
             <h1 class="siom-login-form-title">Selamat Datang</h1>
             <p class="siom-login-form-sub">Masukkan email institusi dan kata sandi Anda untuk melanjutkan ke SIOM.</p>
-        </div>
-
-        <!-- Quick Demo Accounts (Evaluator Feature) -->
-        <div class="siom-demo-section">
-            <div class="siom-demo-header">
-                <span class="siom-demo-title">
-                    <i class="bi bi-lightning-charge-fill text-warning"></i> Quick Demo Login:
-                </span>
-                <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Klik untuk mengisi otomatis</span>
-            </div>
-            <div class="siom-demo-grid">
-                <button type="button" wire:click="fillDemo('admin@siom.test', 'Admin')" class="siom-demo-chip {{ $selectedRole === 'Admin' ? 'active' : '' }}" title="Super Admin / UPTI">
-                    👑 Admin
-                </button>
-                <button type="button" wire:click="fillDemo('sekretaris@siom.test', 'HIMA')" class="siom-demo-chip {{ $selectedRole === 'HIMA' ? 'active' : '' }}" title="Sekretaris HIMATIF (HIMA)">
-                    ✍️ HIMA
-                </button>
-                <button type="button" wire:click="fillDemo('sekretaris.ukm@siom.test', 'UKM')" class="siom-demo-chip {{ $selectedRole === 'UKM' ? 'active' : '' }}" title="Sekretaris UKM Taekwondo">
-                    🥋 UKM
-                </button>
-                <button type="button" wire:click="fillDemo('pembina@siom.test', 'Pembina')" class="siom-demo-chip {{ $selectedRole === 'Pembina' ? 'active' : '' }}" title="Dosen Pembina Ormawa">
-                    👨‍🏫 Pembina
-                </button>
-                <button type="button" wire:click="fillDemo('kaprodi@siom.test', 'Kaprodi')" class="siom-demo-chip {{ $selectedRole === 'Kaprodi' ? 'active' : '' }}" title="Ketua Program Studi">
-                    🎓 Kaprodi
-                </button>
-                <button type="button" wire:click="fillDemo('kabag@siom.test', 'BKA')" class="siom-demo-chip {{ $selectedRole === 'BKA' ? 'active' : '' }}" title="Kabag Kemahasiswaan / BKA">
-                    🏛️ BKA
-                </button>
-                <button type="button" wire:click="fillDemo('warek@siom.test', 'Warek')" class="siom-demo-chip {{ $selectedRole === 'Warek' ? 'active' : '' }}" title="Wakil Rektor III (ACC Final & TTE)">
-                    🎖️ Warek III
-                </button>
-            </div>
         </div>
 
         <!-- Session Status -->
