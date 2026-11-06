@@ -1283,21 +1283,21 @@
     <div class="siom-contact-card">
       <div>
         <div class="siom-contact-label">BUTUH BANTUAN?</div>
-        <div class="siom-contact-title">HUBUNGI BIRO BKA</div>
+        <div class="siom-contact-title">HUBUNGI BAGIAN KEMAHASISWAAN DAN ALUMNI</div>
         <p class="siom-contact-desc">
-          Tim Biro Kemahasiswaan & Alumni (BKA) siap membantu kendala teknis, pengajuan proposal, konsultasi pagu anggaran, maupun verifikasi administrasi kegiatan organisasi mahasiswa.
+          Tim Bagian Kemahasiswaan dan Alumni (BKA) siap membantu kendala teknis, pengajuan proposal, konsultasi pagu anggaran, maupun verifikasi administrasi kegiatan organisasi mahasiswa.
         </p>
       </div>
 
       <div>
         <div class="siom-contact-info-block">
           <div class="siom-contact-info-title"><i class="bi bi-geo-alt-fill"></i> SEKRETARIAT</div>
-          <div class="siom-contact-info-text">Gedung Rektorat Lt. 1, Kampus ITSK RS dr. Soepraoen Malang</div>
+          <div class="siom-contact-info-text">Gedung Rektorat Lt. 2, Kampus 2 ITSK RS dr. Soepraoen Malang</div>
         </div>
         <div class="siom-contact-info-block">
           <div class="siom-contact-info-title"><i class="bi bi-instagram"></i> INSTAGRAM</div>
           <div class="siom-contact-info-text">
-            <a href="https://instagram.com/soepraoen_muda" target="_blank" rel="noopener noreferrer" class="siom-contact-link">@soepraoen_muda</a>
+            <a href="https://www.instagram.com/kemahasiswaan_soepraoen/" target="_blank" rel="noopener noreferrer" class="siom-contact-link">@kemahasiswaan_soepraoen</a>
             <span style="color:#64748B; margin: 0 0.35rem;">|</span>
             <a href="https://instagram.com/itsk_soepraoen" target="_blank" rel="noopener noreferrer" class="siom-contact-link">@itsk_soepraoen</a>
           </div>
@@ -1331,7 +1331,7 @@
   <!-- 10. Footer -->
   <footer class="siom-footer">
     <div>
-      © 2026 Powered by RnD UPTI & BKA - ITSK RS dr. Soepraoen Malang
+      © 2026 Powered by BKA - ITSK RS dr. Soepraoen Malang
     </div>
     <div>
       SIOM <strong>Soepraoen Muda 2026</strong> • Sistem Informasi Organisasi Mahasiswa

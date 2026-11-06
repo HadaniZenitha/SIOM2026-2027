@@ -86,7 +86,7 @@ class DemoUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'pembina@siom.test'],
             [
-                'name' => 'Dr. Pembina Ormawa, M.Kom',
+                'name' => 'Moch. Anshori, S.Kom., M.Kom',
                 'password' => $password,
                 'role_id' => $pembinaRole?->id,
                 'ormawa_id' => $himatif?->id,
@@ -99,7 +99,7 @@ class DemoUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'kaprodi@siom.test'],
             [
-                'name' => 'Kaprodi Informatika, M.T',
+                'name' => 'M. Syauqi Haris, M.Kom',
                 'password' => $password,
                 'role_id' => $kaprodiRole?->id,
                 'program_studi_id' => $prodiIF?->id,
