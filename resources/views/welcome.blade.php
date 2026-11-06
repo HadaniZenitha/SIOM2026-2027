@@ -1010,7 +1010,7 @@
             <div class="siom-card-pill">TAHAP 3</div>
             <div class="siom-card-content">
               <h3 class="siom-card-title">Validasi anggaran dan pagu</h3>
-              <p class="siom-card-sub">Biro Kemahasiswaan memeriksa ketersediaan pagu dan kelayakan anggaran kegiatan.</p>
+              <p class="siom-card-sub">Bagian Kemahasiswaan memeriksa ketersediaan pagu dan kelayakan anggaran kegiatan.</p>
             </div>
           </article>
         </div>
@@ -1191,7 +1191,7 @@
       </div>
       <div class="siom-faq-body">
         <p>
-          Akun pengurus ormawa (Ketua, Sekretaris, Bendahara) serta Dosen Pembina, Kaprodi, dan Verifikator didaftarkan secara terpusat oleh Biro Kemahasiswaan & Alumni (BKA) bersama Admin UPTI.
+          Akun pengurus ormawa (Ketua, Sekretaris, Bendahara) serta Dosen Pembina, Kaprodi, dan Verifikator didaftarkan secara terpusat oleh Bagian Kemahasiswaan & Alumni (BKA) bersama Admin UPTI.
         </p>
         <ul style="margin: 0.6rem 0 0.6rem 1.25rem; line-height: 1.7;">
           <li>Klik tombol <strong>"MASUK"</strong> pada navigasi kanan atas atau tombol utama di halaman beranda.</li>

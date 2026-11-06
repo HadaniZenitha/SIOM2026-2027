@@ -283,8 +283,10 @@ class Index extends Component
                 ->get();
         }
 
+        $canManageSignature = $isApprover;
+
         $savedSignaturePreview = null;
-        if ($isApprover && $user->signature_path && Storage::disk('local')->exists($user->signature_path)) {
+        if ($canManageSignature && $user->signature_path && Storage::disk('local')->exists($user->signature_path)) {
             $savedSignaturePreview = 'data:image/png;base64,'.base64_encode((string) Storage::disk('local')->get($user->signature_path));
         }
 
@@ -300,6 +302,7 @@ class Index extends Component
             'budgetActivities' => $budgetActivities,
             'realizedAmount' => $realizedAmount,
             'isApprover' => $isApprover,
+            'canManageSignature' => $canManageSignature,
             'savedSignaturePreview' => $savedSignaturePreview,
         ]);
     }

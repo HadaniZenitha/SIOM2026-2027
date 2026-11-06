@@ -76,6 +76,12 @@ class Create extends Component
 
     public string $chairman_nim = '';
 
+    public mixed $chairmanSignatureFile = null;
+
+    public ?string $chairman_signature_path = null;
+
+    public ?string $chairmanSignaturePreview = null;
+
     public string $pembina_name = '';
 
     public string $pembina_nuptk = '';
@@ -293,6 +299,7 @@ class Create extends Component
         }
 
         if ($this->step === 3) {
+            $this->cleanEmptyRows();
             $this->validate([
                 'chairman_name' => ['nullable', 'string', 'max:255'],
                 'chairman_nim' => ['nullable', 'string', 'max:100'],
@@ -316,11 +323,12 @@ class Create extends Component
         }
 
         if ($this->step === 4) {
+            $this->cleanEmptyRows();
             $this->validate([
                 'items' => ['required', 'array', 'min:1'],
                 'items.*.item_name' => ['required', 'string', 'max:255'],
                 'items.*.qty' => ['required', 'numeric', 'min:0.01'],
-                'items.*.unit' => ['required', 'string', 'max:50'],
+                'items.*.unit' => ['nullable', 'string', 'max:50'],
                 'items.*.price' => ['required', 'numeric', 'min:0'],
             ]);
         }
@@ -452,9 +460,63 @@ class Create extends Component
         }
     }
 
+    public function updated($property, $value): void
+    {
+        // Deteksi cerdas: jika pengguna salah mengetikkan nominal harga pada kolom Satuan
+        if (preg_match('/^items\.(\d+)\.unit$/', (string) $property, $matches)) {
+            $idx = (int) $matches[1];
+            if (isset($this->items[$idx])) {
+                $raw = trim((string) $value);
+                $cleaned = str_ireplace(['rp', '.', ',', ' ', '-'], '', $raw);
+                if ($cleaned !== '' && ctype_digit($cleaned) && (float) $cleaned > 0) {
+                    if ((float) ($this->items[$idx]['price'] ?? 0) <= 0) {
+                        $this->items[$idx]['price'] = (float) $cleaned;
+                        $this->items[$idx]['unit'] = 'pcs';
+                    }
+                }
+            }
+        }
+    }
+
+    public function cleanEmptyRows(): void
+    {
+        // Bersihkan baris RAB tambahan yang belum diisi agar tidak memicu error validasi
+        if (count($this->items) > 1) {
+            $cleanedItems = array_values(array_filter($this->items, function (array $item): bool {
+                return trim((string) ($item['item_name'] ?? '')) !== '';
+            }));
+
+            if (! empty($cleanedItems)) {
+                $this->items = $cleanedItems;
+            }
+        }
+
+        // Bersihkan baris panitia tambahan yang kosong
+        if (count($this->committees) > 1) {
+            $cleanedCommittees = array_values(array_filter($this->committees, function (array $committee): bool {
+                return trim((string) ($committee['name'] ?? '')) !== '';
+            }));
+
+            if (! empty($cleanedCommittees)) {
+                $this->committees = $cleanedCommittees;
+            }
+        }
+
+        // Bersihkan baris susunan acara tambahan yang kosong
+        if (count($this->rundowns) > 1) {
+            $cleanedRundowns = array_values(array_filter($this->rundowns, function (array $rundown): bool {
+                return trim((string) ($rundown['event_name'] ?? '')) !== '';
+            }));
+
+            if (! empty($cleanedRundowns)) {
+                $this->rundowns = $cleanedRundowns;
+            }
+        }
+    }
+
     public function addItem(): void
     {
-        $this->items[] = ['item_name' => '', 'qty' => 1, 'unit' => '', 'price' => 0];
+        $this->items[] = ['item_name' => '', 'qty' => 1, 'unit' => 'pcs', 'price' => 0];
     }
 
     public function removeItem(int $index): void
@@ -477,6 +539,134 @@ class Create extends Component
         return (float) ($item['qty'] ?? 0) * (float) ($item['price'] ?? 0);
     }
 
+    public function loadChairmanSignaturePreview(): void
+    {
+        if ($this->chairman_signature_path && Storage::disk('local')->exists($this->chairman_signature_path)) {
+            $this->chairmanSignaturePreview = 'data:image/png;base64,'.base64_encode((string) Storage::disk('local')->get($this->chairman_signature_path));
+        } else {
+            $this->chairmanSignaturePreview = null;
+        }
+    }
+
+    public function saveChairmanDrawnSignature(string $signatureDataUrl): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+
+        if (! preg_match('/^data:image\/(png|jpeg);base64,/', $signatureDataUrl)) {
+            $this->addError('chairmanSignatureDrawn', 'Format tanda tangan digital tidak valid.');
+
+            return;
+        }
+
+        $base64Data = substr($signatureDataUrl, strpos($signatureDataUrl, ',') + 1);
+        $decoded = base64_decode($base64Data, true);
+
+        if ($decoded === false || strlen($decoded) < 200) {
+            $this->addError('chairmanSignatureDrawn', 'Coretan tanda tangan tidak boleh kosong.');
+
+            return;
+        }
+
+        if (strlen($decoded) > 2 * 1024 * 1024) {
+            $this->addError('chairmanSignatureDrawn', 'Ukuran tanda tangan digital melebihi batas 2 MB.');
+
+            return;
+        }
+
+        $imageInfo = @getimagesizefromstring($decoded);
+        if ($imageInfo === false) {
+            $this->addError('chairmanSignatureDrawn', 'Berkas gambar tanda tangan tidak valid.');
+
+            return;
+        }
+
+        [$width, $height] = $imageInfo;
+        if ($width > 2000 || $height > 1000) {
+            $this->addError('chairmanSignatureDrawn', 'Dimensi tanda tangan digital melebihi batas 2000x1000 piksel.');
+
+            return;
+        }
+
+        $oldPath = $this->chairman_signature_path;
+        $filename = 'signatures/chair_sig_'.Str::random(36).'.png';
+
+        try {
+            Storage::disk('local')->put($filename, $decoded);
+            $this->chairman_signature_path = $filename;
+            $this->loadChairmanSignaturePreview();
+
+            if ($this->submission) {
+                $this->submission->update(['chairman_signature_path' => $filename]);
+            }
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($filename);
+
+            throw $exception;
+        }
+
+        if ($oldPath && $oldPath !== $filename && Storage::disk('local')->exists($oldPath)) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        $this->resetErrorBag('chairmanSignatureDrawn');
+        session()->flash('chairman_signature_success', 'Tanda tangan digital Ketua Pelaksana berhasil disimpan.');
+    }
+
+    public function uploadChairmanSignature(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+
+        $this->validate([
+            'chairmanSignatureFile' => ['required', 'image', 'mimes:png,jpg,jpeg', 'max:2048', 'dimensions:max_width=2000,max_height=1000'],
+        ], [
+            'chairmanSignatureFile.required' => 'Pilih berkas tanda tangan terlebih dahulu.',
+            'chairmanSignatureFile.image' => 'Berkas harus berupa gambar PNG atau JPG.',
+            'chairmanSignatureFile.max' => 'Ukuran gambar maksimal 2 MB.',
+            'chairmanSignatureFile.dimensions' => 'Dimensi gambar maksimal 2000x1000 piksel.',
+        ]);
+
+        $oldPath = $this->chairman_signature_path;
+        $path = $this->chairmanSignatureFile->store('signatures', 'local');
+        if (! is_string($path) || $path === '') {
+            throw new RuntimeException('Tanda tangan tidak dapat disimpan. Coba unggah kembali.');
+        }
+
+        $this->chairman_signature_path = $path;
+        $this->loadChairmanSignaturePreview();
+
+        if ($this->submission) {
+            $this->submission->update(['chairman_signature_path' => $path]);
+        }
+
+        if ($oldPath && $oldPath !== $path && Storage::disk('local')->exists($oldPath)) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        $this->reset('chairmanSignatureFile');
+        session()->flash('chairman_signature_success', 'Tanda tangan berkas Ketua Pelaksana berhasil diunggah.');
+    }
+
+    public function deleteChairmanSignature(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && $user->hasRole('sekretaris_ormawa'), 403);
+
+        if ($this->chairman_signature_path && Storage::disk('local')->exists($this->chairman_signature_path)) {
+            Storage::disk('local')->delete($this->chairman_signature_path);
+        }
+
+        $this->chairman_signature_path = null;
+        $this->chairmanSignaturePreview = null;
+
+        if ($this->submission) {
+            $this->submission->update(['chairman_signature_path' => null]);
+        }
+
+        session()->flash('chairman_signature_success', 'Tanda tangan Ketua Pelaksana berhasil dihapus.');
+    }
+
     public function saveDraft(): void
     {
         if ($this->sourceType === 'upload') {
@@ -485,7 +675,14 @@ class Create extends Component
             return;
         }
 
-        $this->validateAll();
+        $this->cleanEmptyRows();
+
+        $this->validate([
+            'activity_name' => ['required', 'string', 'max:255'],
+        ], [
+            'activity_name.required' => 'Nama kegiatan wajib diisi untuk menyimpan draft.',
+        ]);
+
         $this->saveSubmission('draft');
     }
 
@@ -546,6 +743,7 @@ class Create extends Component
             return;
         }
 
+        $this->cleanEmptyRows();
         $this->validateAll();
         $this->saveSubmission('submitted', $submissionService);
     }
@@ -612,6 +810,7 @@ class Create extends Component
                         'total_amount' => $data['uploadedTotalAmount'],
                         'event_date' => $data['event_date'],
                         'activity_date' => $data['event_date'],
+                        'chairman_signature_path' => $this->chairman_signature_path,
                         'status' => 'draft',
                     ]);
 
@@ -620,6 +819,7 @@ class Create extends Component
                     'total_amount' => $data['uploadedTotalAmount'],
                     'event_date' => $data['event_date'],
                     'activity_date' => $data['event_date'],
+                    'chairman_signature_path' => $this->chairman_signature_path,
                 ]);
                 $submission->items()->delete();
                 $submission->items()->create([
@@ -702,6 +902,7 @@ class Create extends Component
                 'budget_code' => $this->budget_code,
                 'chairman_name' => $this->chairman_name,
                 'chairman_nim' => $this->chairman_nim,
+                'chairman_signature_path' => $this->chairman_signature_path,
                 'pembina_name' => $this->pembina_name,
                 'pembina_nuptk' => $this->pembina_nuptk,
                 'kaprodi_name' => $this->kaprodi_name,
@@ -748,13 +949,21 @@ class Create extends Component
             }
 
             foreach ($this->items as $item) {
+                if (trim((string) ($item['item_name'] ?? '')) === '') {
+                    continue;
+                }
+
+                $qty = max(0.01, (float) ($item['qty'] ?? 1));
+                $price = max(0, (float) ($item['price'] ?? 0));
+                $unit = trim((string) ($item['unit'] ?? ''));
+
                 SubmissionItem::create([
                     'submission_id' => $submission->id,
-                    'unit' => $item['unit'] ?? 'pcs',
-                    'item_name' => $item['item_name'],
-                    'qty' => $item['qty'],
-                    'price' => $item['price'],
-                    'total_price' => (float) $item['qty'] * (float) $item['price'],
+                    'unit' => $unit !== '' ? $unit : 'pcs',
+                    'item_name' => trim((string) $item['item_name']),
+                    'qty' => $qty,
+                    'price' => $price,
+                    'total_price' => $qty * $price,
                 ]);
             }
 
@@ -777,23 +986,31 @@ class Create extends Component
             }
 
             foreach ($this->committees as $index => $committee) {
+                if (trim((string) ($committee['name'] ?? '')) === '') {
+                    continue;
+                }
+
                 SubmissionCommittee::create([
                     'submission_id' => $submission->id,
-                    'name' => $committee['name'],
-                    'structural_role' => $committee['structural_role'] ?? 'Mahasiswa',
-                    'committee_role' => $committee['committee_role'] ?? 'Anggota',
-                    'description' => $committee['description'] ?? '-',
+                    'name' => trim((string) $committee['name']),
+                    'structural_role' => ! empty($committee['structural_role']) ? $committee['structural_role'] : 'Mahasiswa',
+                    'committee_role' => ! empty($committee['committee_role']) ? $committee['committee_role'] : 'Anggota',
+                    'description' => ! empty($committee['description']) ? $committee['description'] : '-',
                     'sort_order' => $index,
                 ]);
             }
 
             foreach ($this->rundowns as $index => $rundown) {
+                if (trim((string) ($rundown['event_name'] ?? '')) === '') {
+                    continue;
+                }
+
                 SubmissionRundown::create([
                     'submission_id' => $submission->id,
                     'day_date' => $rundown['day_date'] ?? null,
-                    'time_slot' => $rundown['time_slot'],
-                    'event_name' => $rundown['event_name'],
-                    'pic' => $rundown['pic'],
+                    'time_slot' => ! empty($rundown['time_slot']) ? $rundown['time_slot'] : '-',
+                    'event_name' => trim((string) $rundown['event_name']),
+                    'pic' => $rundown['pic'] ?? null,
                     'note' => $rundown['note'] ?? null,
                     'sort_order' => $index,
                 ]);
@@ -839,6 +1056,8 @@ class Create extends Component
         $this->budget_code = $submission->budget_code ?? '';
         $this->chairman_name = $submission->chairman_name ?? '';
         $this->chairman_nim = $submission->chairman_nim ?? '';
+        $this->chairman_signature_path = $submission->chairman_signature_path;
+        $this->loadChairmanSignaturePreview();
         $this->pembina_name = $submission->pembina_name ?? '';
         $this->pembina_nuptk = $submission->pembina_nuptk ?? '';
         $this->kaprodi_name = $submission->kaprodi_name ?? '';
@@ -921,9 +1140,17 @@ class Create extends Component
     protected function messages(): array
     {
         return [
+            'activity_name.required' => 'Nama kegiatan wajib diisi.',
             'event_date.after_or_equal' => 'Tanggal pelaksanaan kegiatan minimal 1 bulan (30 hari) dari tanggal pengajuan proposal.',
             'proposalUpload.mimes' => 'Format file proposal yang diunggah harus berekstensi .docx atau .pdf.',
             'proposalUpload.max' => 'Ukuran file proposal maksimal 20 MB.',
+            'items.required' => 'Rincian Anggaran Biaya (RAB) wajib diisi minimal 1 baris.',
+            'items.min' => 'Rincian Anggaran Biaya (RAB) minimal 1 baris.',
+            'items.*.item_name.required' => 'Nama rincian kebutuhan pada RAB wajib diisi.',
+            'items.*.qty.required' => 'Jumlah (Qty) pada RAB wajib diisi.',
+            'items.*.qty.min' => 'Jumlah (Qty) minimal 0.01.',
+            'items.*.price.required' => 'Harga satuan pada RAB wajib diisi.',
+            'items.*.price.min' => 'Harga satuan minimal 0.',
         ];
     }
 

@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'SIOM 2026 – Sistem Informasi Organisasi Mahasiswa | ITSK RS dr. Soepraoen Malang'),
 
     /*
     |--------------------------------------------------------------------------

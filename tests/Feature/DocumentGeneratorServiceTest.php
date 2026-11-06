@@ -456,3 +456,250 @@ it('generates a signed LPJ with all approver signatures and embeds them properly
 
     expect($documentXml)->not->toContain('${signature_');
 });
+
+test('generator memastikan logo cover pada paragraf berpusat dikonversi ke drawingml terpusat secara presisi', function () {
+    $tempDir = storage_path('app/temp');
+    if (! is_dir($tempDir)) {
+        mkdir($tempDir, 0755, true);
+    }
+
+    $tempDocx = $tempDir.'/test_logo_center_'.uniqid().'.docx';
+    $zip = new ZipArchive();
+    $zip->open($tempDocx, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $mockXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:v="urn:schemas-microsoft-com:vml">
+    <w:body>
+        <w:p>
+            <w:pPr><w:jc w:val="center"/></w:pPr>
+            <w:r>
+                <w:pict>
+                    <v:shape id="logoShape" style="width:130px;height:130px">
+                        <v:imagedata r:id="rId1" o:title=""/>
+                    </v:shape>
+                </w:pict>
+            </w:r>
+        </w:p>
+    </w:body>
+</w:document>';
+    $zip->addFromString('word/document.xml', $mockXml);
+    $zip->close();
+
+    $generator = app(DocumentGeneratorService::class);
+    $generator->ensureDocxImagesCentered($tempDocx);
+
+    $checkZip = new ZipArchive();
+    expect($checkZip->open($tempDocx))->toBeTrue();
+    $resultXml = $checkZip->getFromName('word/document.xml');
+    $checkZip->close();
+    @unlink($tempDocx);
+
+    // Harus dikonversi menjadi DrawingML inline dengan perataan tengah dan rId1
+    expect($resultXml)->toContain('<w:drawing>')
+        ->and($resultXml)->toContain('<wp:inline')
+        ->and($resultXml)->toContain('r:embed="rId1"')
+        ->and($resultXml)->toContain('Logo Ormawa');
+});
+
+test('generator menyisipkan tanda tangan canvas untuk role terkait ke dalam dokumen proposal tanpa menyisakan macro teks mentah', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/proposal_signature_test.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    foreach (['pembina_ormawa', 'ketua_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $roleName) {
+        $section->addText('${signature_'.$roleName.'}');
+    }
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template Proposal Signature Test',
+        'type' => 'proposal',
+        'file_name' => 'proposal_signature_test.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    // Berikan tanda tangan canvas pada submitter
+    $submitterSig = UploadedFile::fake()->image('ketua.png')->store('signatures', 'local');
+    $fixture['submitter']->update(['signature_path' => $submitterSig]);
+
+    // Berikan tanda tangan canvas pada masing-masing role pejabat dan catat approval step yang disetujui (ACC)
+    foreach (['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $idx => $roleName) {
+        $role = Role::firstOrCreate(['name' => $roleName], ['display_name' => $roleName]);
+        $sigPath = UploadedFile::fake()->image($roleName.'.png')->store('signatures', 'local');
+        $approver = User::factory()->create([
+            'role_id' => $role->id,
+            'ormawa_id' => $roleName === 'pembina_ormawa' ? $fixture['ormawa']->id : null,
+            'signature_path' => $sigPath,
+        ]);
+        \App\Models\ApprovalStep::create([
+            'submission_id' => $fixture['submission']->id,
+            'role_id' => $role->id,
+            'sequence' => $idx + 1,
+            'status' => 'approved',
+            'approved_by' => $approver->id,
+            'approved_at' => now(),
+            'signature_path' => $sigPath,
+        ]);
+    }
+
+    $generator = app(DocumentGeneratorService::class);
+    $relPath = $generator->generateProposal($fixture['submission']);
+
+    expect(Storage::disk('public')->exists($relPath))->toBeTrue();
+    $archive = new ZipArchive;
+    expect($archive->open(Storage::disk('public')->path($relPath)))->toBeTrue();
+    $documentXml = $archive->getFromName('word/document.xml');
+    $archive->close();
+
+    // Pastikan tidak ada macro ${signature_...} mentah yang tertinggal
+    expect($documentXml)->not->toContain('${signature_pembina_ormawa}')
+        ->and($documentXml)->not->toContain('${signature_ketua_ormawa}')
+        ->and($documentXml)->not->toContain('${signature_kabag_kemahasiswaan}')
+        ->and($documentXml)->not->toContain('${signature_kaprodi}')
+        ->and($documentXml)->not->toContain('${signature_warek}');
+});
+
+test('generator memprioritaskan chairman_signature_path dari submission untuk tanda tangan ketua pelaksana', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/proposal_chair_sig_test.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    $section->addText('${signature_ketua_pelaksana}');
+    $section->addText('${signature_ketua_ormawa}');
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template Proposal Chair Sig Test',
+        'type' => 'proposal',
+        'file_name' => 'proposal_chair_sig_test.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    $chairSig = UploadedFile::fake()->image('chair_sig.png')->store('signatures', 'local');
+    $fixture['submission']->update(['chairman_signature_path' => $chairSig]);
+
+    $generator = app(DocumentGeneratorService::class);
+    $relPath = $generator->generateProposal($fixture['submission']);
+
+    expect(Storage::disk('public')->exists($relPath))->toBeTrue();
+    $archive = new ZipArchive;
+    expect($archive->open(Storage::disk('public')->path($relPath)))->toBeTrue();
+    $documentXml = $archive->getFromName('word/document.xml');
+    $archive->close();
+
+    expect($documentXml)->not->toContain('${signature_ketua_pelaksana}')
+        ->and($documentXml)->not->toContain('${signature_ketua_ormawa}');
+});
+
+test('tanda tangan approver hanya muncul di dokumen setelah role tersebut menyetujui (ACC)', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/proposal_acc_test.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    $section->addText('${signature_pembina_ormawa}');
+    $section->addText('${signature_kaprodi}');
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template Proposal ACC Test',
+        'type' => 'proposal',
+        'file_name' => 'proposal_acc_test.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    $rolePembina = Role::firstOrCreate(['name' => 'pembina_ormawa'], ['display_name' => 'Pembina']);
+    $roleKaprodi = Role::firstOrCreate(['name' => 'kaprodi'], ['display_name' => 'Kaprodi']);
+
+    $pembinaSig = UploadedFile::fake()->image('pembina.png')->store('signatures', 'local');
+    $kaprodiSig = UploadedFile::fake()->image('kaprodi.png')->store('signatures', 'local');
+
+    $pembinaUser = User::factory()->create([
+        'role_id' => $rolePembina->id,
+        'ormawa_id' => $fixture['ormawa']->id,
+        'signature_path' => $pembinaSig,
+    ]);
+    $kaprodiUser = User::factory()->create([
+        'role_id' => $roleKaprodi->id,
+        'signature_path' => $kaprodiSig,
+    ]);
+
+    // Hanya pembina yang sudah ACC, kaprodi belum (status pending, signature_path null)
+    \App\Models\ApprovalStep::create([
+        'submission_id' => $fixture['submission']->id,
+        'role_id' => $rolePembina->id,
+        'sequence' => 1,
+        'status' => 'approved',
+        'approved_by' => $pembinaUser->id,
+        'approved_at' => now(),
+        'signature_path' => $pembinaSig,
+    ]);
+    $kaprodiStep = \App\Models\ApprovalStep::create([
+        'submission_id' => $fixture['submission']->id,
+        'role_id' => $roleKaprodi->id,
+        'sequence' => 2,
+        'status' => 'pending',
+        'approved_by' => null,
+        'approved_at' => null,
+        'signature_path' => null,
+    ]);
+
+    $generator = app(DocumentGeneratorService::class);
+    $relPath1 = $generator->generateProposal($fixture['submission']);
+
+    $archive1 = new ZipArchive;
+    expect($archive1->open(Storage::disk('public')->path($relPath1)))->toBeTrue();
+    $media1 = collect(range(0, $archive1->numFiles - 1))
+        ->map(fn (int $i) => $archive1->getNameIndex($i))
+        ->filter(fn (?string $n) => $n && str_starts_with($n, 'word/media/'))
+        ->count();
+    $archive1->close();
+
+    // Hanya 1 tanda tangan (Pembina yang sudah ACC)
+    expect($media1)->toBe(1);
+
+    // Sekarang Kaprodi juga ACC
+    $kaprodiStep->update([
+        'status' => 'approved',
+        'approved_by' => $kaprodiUser->id,
+        'approved_at' => now(),
+        'signature_path' => $kaprodiSig,
+    ]);
+
+    $relPath2 = $generator->generateProposal($fixture['submission']->fresh());
+    $archive2 = new ZipArchive;
+    expect($archive2->open(Storage::disk('public')->path($relPath2)))->toBeTrue();
+    $media2 = collect(range(0, $archive2->numFiles - 1))
+        ->map(fn (int $i) => $archive2->getNameIndex($i))
+        ->filter(fn (?string $n) => $n && str_starts_with($n, 'word/media/'))
+        ->count();
+    $archive2->close();
+
+    // Sekarang 2 tanda tangan tersemat karena keduanya sudah ACC
+    expect($media2)->toBe(2);
+});

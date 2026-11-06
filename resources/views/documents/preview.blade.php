@@ -659,6 +659,38 @@
     padding: 0.6rem 0.75rem;
     font-size: 0.88rem;
 }
+
+/* Pastikan seluruh gambar, logo cover, VML/SVG, dan DrawingML pada paragraf tengah berpusat secara presisi */
+.siom-docx-pages-wrapper .docx p[style*="text-align: center"],
+.siom-docx-pages-wrapper .docx p[style*="text-align:center"] {
+    text-align: center !important;
+}
+
+.siom-docx-pages-wrapper .docx p[style*="text-align: center"] > div,
+.siom-docx-pages-wrapper .docx p[style*="text-align:center"] > div,
+.siom-docx-pages-wrapper .docx p[style*="text-align: center"] span,
+.siom-docx-pages-wrapper .docx p[style*="text-align:center"] span {
+    text-align: center !important;
+}
+
+.siom-docx-pages-wrapper .docx p[style*="text-align: center"] svg,
+.siom-docx-pages-wrapper .docx p[style*="text-align:center"] svg,
+.siom-docx-pages-wrapper .docx p[style*="text-align: center"] img,
+.siom-docx-pages-wrapper .docx p[style*="text-align:center"] img {
+    display: inline-block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    vertical-align: middle !important;
+}
+
+.siom-docx-pages-wrapper .docx div:has(> svg) {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -807,6 +839,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     })
     .then(() => {
+        centerDocxVisualImages(container);
         loading.style.display = 'none';
     })
     .catch(err => {
@@ -815,6 +848,46 @@ document.addEventListener('DOMContentLoaded', function() {
         errorEl.style.display = 'block';
     });
 });
+
+function centerDocxVisualImages(container) {
+    if (!container) return;
+    const paragraphs = container.querySelectorAll('.docx p');
+    paragraphs.forEach(p => {
+        const style = p.getAttribute('style') || '';
+        const isCenter = p.style.textAlign === 'center' || style.includes('text-align: center') || style.includes('text-align:center');
+        if (isCenter) {
+            const svgs = p.querySelectorAll('svg');
+            const imgs = p.querySelectorAll('img');
+            const divs = p.querySelectorAll('div');
+
+            if (svgs.length > 0 || imgs.length > 0) {
+                p.style.display = 'flex';
+                p.style.flexDirection = 'column';
+                p.style.alignItems = 'center';
+                p.style.justifyContent = 'center';
+                p.style.textAlign = 'center';
+
+                divs.forEach(d => {
+                    d.style.display = 'flex';
+                    d.style.justifyContent = 'center';
+                    d.style.alignItems = 'center';
+                    d.style.margin = '0 auto';
+                    d.style.width = '100%';
+                });
+
+                svgs.forEach(s => {
+                    s.style.display = 'block';
+                    s.style.margin = '0 auto';
+                });
+
+                imgs.forEach(m => {
+                    m.style.display = 'block';
+                    m.style.margin = '0 auto';
+                });
+            }
+        }
+    });
+}
 </script>
 @endsection
 

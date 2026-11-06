@@ -55,7 +55,8 @@ class DocumentGeneratorService
 
     public function generateLpj(Lpj $lpj): string
     {
-        $lpj->loadMissing(['items', 'submission']);
+        $lpj->loadMissing(['items', 'submission', 'documents']);
+
         $submission = $lpj->submission;
 
         if (! $submission) {
@@ -67,7 +68,13 @@ class DocumentGeneratorService
             $lpj->setRelation('items', $submission->items);
         }
 
-        return $this->generateDocument($submission, 'lpj', $lpj->items);
+        return $this->generateDocument(
+            $submission,
+            'lpj',
+            $lpj->items,
+            null,
+            $lpj
+        );
     }
 
     public function generateSignedProposal(Submission $submission): string
@@ -155,7 +162,14 @@ class DocumentGeneratorService
             }
         }
 
-        // Inject tanda tangan pembuat / ketua pelaksana jika tersimpan di profil submitter
+        // Inject tanda tangan ketua pelaksana jika tersimpan di submission atau profil submitter
+        $chairmanSigPath = null;
+        if ($context instanceof Submission && $context->chairman_signature_path) {
+            $chairmanSigPath = $this->resolveSignatureFilePath($context->chairman_signature_path);
+        } elseif ($context instanceof Lpj && $context->submission?->chairman_signature_path) {
+            $chairmanSigPath = $this->resolveSignatureFilePath($context->submission->chairman_signature_path);
+        }
+
         $submitterUser = null;
         if ($context instanceof Submission) {
             $submitterUser = $context->submitter;
@@ -163,16 +177,21 @@ class DocumentGeneratorService
             $submitterUser = $context->creator;
         }
 
-        if ($submitterUser?->signature_path && Storage::disk('local')->exists($submitterUser->signature_path)) {
-            $submitterSigPath = Storage::disk('local')->path($submitterUser->signature_path);
+        $finalLeaderSigPath = $chairmanSigPath;
+        if (! $finalLeaderSigPath && $submitterUser?->signature_path && Storage::disk('local')->exists($submitterUser->signature_path)) {
+            $finalLeaderSigPath = Storage::disk('local')->path($submitterUser->signature_path);
+        }
+
+        if ($finalLeaderSigPath && file_exists($finalLeaderSigPath)) {
             foreach (['signature_ketua_pelaksana', 'signature_ketua_ormawa', 'signature_presma'] as $userPlaceholder) {
                 if (in_array($userPlaceholder, $variables, true) && ! isset($signatures[$userPlaceholder])) {
                     $processor->setImageValue($userPlaceholder, [
-                        'path'   => $submitterSigPath,
+                        'path'   => $finalLeaderSigPath,
                         'width'  => 195,
                         'height' => 85,
                         'ratio'  => true,
                     ]);
+                    $signatures[$userPlaceholder] = $finalLeaderSigPath;
                 }
             }
         }
@@ -212,7 +231,9 @@ class DocumentGeneratorService
         $directory = 'generated_documents/signed';
         Storage::disk('local')->makeDirectory($directory);
         $path = $directory.'/'.$filename.'_'.Str::uuid().'.docx';
-        $processor->saveAs(Storage::disk('local')->path($path));
+        $fullPath = Storage::disk('local')->path($path);
+        $processor->saveAs($fullPath);
+        $this->ensureDocxImagesCentered($fullPath);
 
         return $path;
     }
@@ -221,7 +242,8 @@ class DocumentGeneratorService
         Submission $submission,
         string $type,
         ?Collection $budgetItems = null,
-        ?string $preferredFileName = null
+        ?string $preferredFileName = null,
+        ?Lpj $lpj = null
     ): string {
         $submission->load([
             'period',
@@ -231,7 +253,12 @@ class DocumentGeneratorService
             'timelines',
             'committees',
             'rundowns',
+            'approvalSteps.role',
         ]);
+
+        if ($lpj) {
+            $lpj->loadMissing('approvalSteps.role');
+        }
 
         $ormawa = $submission->ormawa;
         $isBem  = $ormawa && ($ormawa->isBem() || $ormawa->isDpm());
@@ -455,14 +482,222 @@ class DocumentGeneratorService
         }
 
         /* 6. PEJABAT & PENANDATANGAN — sesuai kategori ormawa */
-        $this->injectOfficialSignatures($processor, $submission);
+        $this->injectOfficialSignatures($processor, $submission, $lpj);
 
         /* 7. PLACEHOLDER LPJ KHUSUS (foto/kwitansi) — isi dengan teks kosong jika tidak ada */
         $variables = $processor->getVariables();
-        $lpjSpecialPlaceholders = ['photo', 'photo_caption', 'receipt_scan', 'receipt_amount', 'receipt_caption'];
-        foreach ($lpjSpecialPlaceholders as $ph) {
-            if (in_array($ph, $variables, true)) {
-                $processor->setValue($ph, '');
+
+        /* SCAN NOTA KEGIATAN LPJ */
+        if ($type === 'lpj' && $lpj) {
+
+            $receipts = $lpj->documents()
+                ->where('type', 'nota')
+                ->get()
+                ->filter(function ($document) {
+
+                    $extension = strtolower(
+                        pathinfo($document->file_name, PATHINFO_EXTENSION)
+                    );
+
+                    return in_array(
+                        $extension,
+                        ['jpg', 'jpeg', 'png'],
+                        true
+                    ) && Storage::disk('local')->exists($document->file_path);
+                })
+                ->values();
+
+            // Kelompokkan dua nota dalam satu baris
+            $receiptRows = $receipts->chunk(2);
+
+            if ($receiptRows->isNotEmpty()) {
+
+                // Clone baris tabel berdasarkan jumlah kelompok nota
+                $processor->cloneRow(
+                    'receipt_scan_left',
+                    $receiptRows->count()
+                );
+
+                foreach ($receiptRows as $index => $row) {
+
+                    $number = $index + 1;
+
+                    $left = $row->get(0);
+                    $right = $row->get(1);
+
+                    // NOTA KIRI
+                    if ($left) {
+
+                        $processor->setImageValue(
+                            "receipt_scan_left#{$number}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $left->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_left#{$number}",
+                            '-'
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_left#{$number}",
+                            $left->file_name
+                        );
+                    } else {
+
+                        $processor->setValue(
+                            "receipt_scan_left#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_left#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_left#{$number}",
+                            ''
+                        );
+                    }
+
+                    // NOTA KANAN
+                    if ($right) {
+
+                        $processor->setImageValue(
+                            "receipt_scan_right#{$number}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $right->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_right#{$number}",
+                            '-'
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_right#{$number}",
+                            $right->file_name
+                        );
+                    } else {
+
+                        $processor->setValue(
+                            "receipt_scan_right#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_right#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_right#{$number}",
+                            ''
+                        );
+                    }
+                }
+            } else {
+
+                // Jika tidak ada nota gambar
+                $processor->setValue('receipt_scan_left', '');
+                $processor->setValue('receipt_scan_right', '');
+
+                $processor->setValue('receipt_amount_left', '');
+                $processor->setValue('receipt_amount_right', '');
+
+                $processor->setValue('receipt_caption_left', '');
+                $processor->setValue('receipt_caption_right', '');
+            }
+        }
+
+        if ($type === 'lpj' && $lpj) {
+
+            $documentation = $lpj->documents()
+                ->where('type', 'dokumentasi')
+                ->get()
+                ->filter(function ($document) {
+                    $extension = strtolower(
+                        pathinfo($document->file_name, PATHINFO_EXTENSION)
+                    );
+
+                    return in_array($extension, ['jpg', 'jpeg', 'png'], true)
+                        && Storage::disk('local')->exists($document->file_path);
+                })
+                ->values();
+
+            // Kelompokkan dua foto untuk setiap baris
+            $rows = $documentation->chunk(2);
+
+            if ($rows->isNotEmpty()) {
+
+                $processor->cloneRow(
+                    'documentation_left',
+                    $rows->count()
+                );
+
+                foreach ($rows as $index => $images) {
+
+                    $rowNumber = $index + 1;
+
+                    $left = $images->get(0);
+                    $right = $images->get(1);
+
+                    // Foto kiri
+                    if ($left) {
+                        $processor->setImageValue(
+                            "documentation_left#{$rowNumber}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $left->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+                    } else {
+                        $processor->setValue(
+                            "documentation_left#{$rowNumber}",
+                            ''
+                        );
+                    }
+
+                    // Foto kanan
+                    if ($right) {
+                        $processor->setImageValue(
+                            "documentation_right#{$rowNumber}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $right->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+                    } else {
+                        $processor->setValue(
+                            "documentation_right#{$rowNumber}",
+                            ''
+                        );
+                    }
+                }
+            } else {
+                $processor->setValue('documentation_left', '');
+                $processor->setValue('documentation_right', '');
             }
         }
 
@@ -477,12 +712,16 @@ class DocumentGeneratorService
         $outputPath = Storage::disk('public')->path($directory.'/'.$filename);
 
         $processor->saveAs($outputPath);
+        $this->ensureDocxImagesCentered($outputPath);
 
         return $directory.'/'.$filename;
     }
 
-    protected function injectOfficialSignatures(TemplateProcessor $processor, Submission $submission): void
-    {
+    protected function injectOfficialSignatures(
+        TemplateProcessor $processor,
+        Submission $submission,
+        ?Lpj $lpj = null
+    ): void {
         $submitter = $submission->submitter;
         $ormawa    = $submission->ormawa;
 
@@ -561,6 +800,158 @@ class DocumentGeneratorService
         ];
 
         $processor->setValues($values);
+
+        /* 6.1 SISIPKAN TANDA TANGAN CANVAS SESUAI ROLE */
+        $this->injectCanvasSignatures($processor, $submission, $isBem, $ormawa, $pembina, $kaprodi, $submitter, $lpj);
+    }
+
+    /**
+     * Sisipkan tanda tangan digital (canvas) yang HANYA muncul ketika role yang bersangkutan
+     * sudah menyetujui (ACC / status = 'approved') pengajuan proposal atau LPJ tersebut.
+     */
+    protected function injectCanvasSignatures(
+        TemplateProcessor $processor,
+        Submission $submission,
+        bool $isBem,
+        ?Ormawa $ormawa,
+        ?User $pembina,
+        ?User $kaprodi,
+        ?User $submitter,
+        ?Lpj $lpj = null
+    ): void {
+        $variables = $processor->getVariables();
+        $sigPlaceholders = array_filter($variables, fn ($v) => str_starts_with($v, 'signature_'));
+
+        if (empty($sigPlaceholders)) {
+            return;
+        }
+
+        $signatures = [];
+
+        // Ambil tahapan approval dari LPJ (jika dokumen LPJ) atau dari Submission (jika dokumen proposal)
+        $steps = $lpj
+            ? ($lpj->relationLoaded('approvalSteps') ? $lpj->approvalSteps : $lpj->approvalSteps()->with('role')->get())
+            : ($submission->relationLoaded('approvalSteps') ? $submission->approvalSteps : $submission->approvalSteps()->with('role')->get());
+
+        // 1. Pembina Ormawa (Hanya muncul jika sudah ACC / approved)
+        $pembinaSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'pembina_ormawa'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
+        if ($pembinaPath = $this->resolveSignatureFilePath($pembinaSig)) {
+            $signatures['signature_pembina_ormawa'] = $pembinaPath;
+        }
+
+        // 2. Kaprodi (Hanya muncul jika sudah ACC / approved)
+        $kaprodiSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'kaprodi'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
+        if ($kaprodiPath = $this->resolveSignatureFilePath($kaprodiSig)) {
+            $signatures['signature_kaprodi'] = $kaprodiPath;
+        }
+
+        // 3. Kabag Kemahasiswaan (Hanya muncul jika sudah ACC / approved)
+        $kabagSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'kabag_kemahasiswaan'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
+        if ($kabagPath = $this->resolveSignatureFilePath($kabagSig)) {
+            $signatures['signature_kabag_kemahasiswaan'] = $kabagPath;
+        }
+
+        // 4. Warek III (Hanya muncul jika sudah ACC / approved)
+        $warekSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'warek'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
+        if ($warekPath = $this->resolveSignatureFilePath($warekSig)) {
+            $signatures['signature_warek'] = $warekPath;
+        }
+
+        // 5. Ketua Pelaksana / Ketua Ormawa / Presma (Penandatangan Pengaju Kegiatan)
+        $chairmanSig = $submission->chairman_signature_path;
+        if (! $chairmanSig && $lpj) {
+            $chairmanSig = $lpj->submission?->chairman_signature_path;
+        }
+        $chairmanPath = $this->resolveSignatureFilePath($chairmanSig);
+
+        $leaderSig = $chairmanSig ?: ($lpj?->creator?->signature_path ?: $submitter?->signature_path);
+        if (! $leaderSig && $submission->ormawa_id) {
+            $leaderSig = User::query()
+                ->where('ormawa_id', $submission->ormawa_id)
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if (! $leaderSig) {
+            $leaderSig = User::query()
+                ->whereHas('role', fn ($q) => $q->whereIn('name', ['sekretaris_ormawa', 'superadmin']))
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if ($leaderPath = $this->resolveSignatureFilePath($leaderSig)) {
+            $signatures['signature_ketua_ormawa'] = $chairmanPath ?: $leaderPath;
+            $signatures['signature_ketua_pelaksana'] = $chairmanPath ?: $leaderPath;
+            $signatures['signature_presma'] = $leaderPath;
+        }
+
+        // Terapkan ke template processor
+        foreach ($sigPlaceholders as $placeholder) {
+            if (isset($signatures[$placeholder]) && file_exists($signatures[$placeholder])) {
+                try {
+                    $processor->setImageValue($placeholder, [
+                        'path'   => $signatures[$placeholder],
+                        'width'  => 195,
+                        'height' => 85,
+                        'ratio'  => true,
+                    ]);
+                } catch (\Throwable $e) {
+                    $processor->setValue($placeholder, '');
+                }
+            } else {
+                // Bersihkan placeholder agar teks ${...} tidak tampil pada dokumen
+                try {
+                    $processor->setValue($placeholder, '');
+                } catch (\Throwable $e) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolusi path file fisik dari string signature_path (mendukung disk local, public, atau path absolut).
+     */
+    protected function resolveSignatureFilePath(?string $signaturePath): ?string
+    {
+        if (! $signaturePath) {
+            return null;
+        }
+
+        if (file_exists($signaturePath)) {
+            return $signaturePath;
+        }
+
+        if (Storage::disk('local')->exists($signaturePath)) {
+            return Storage::disk('local')->path($signaturePath);
+        }
+
+        if (Storage::disk('public')->exists($signaturePath)) {
+            return Storage::disk('public')->path($signaturePath);
+        }
+
+        return null;
     }
 
     /**
@@ -878,5 +1269,87 @@ class DocumentGeneratorService
             $processor->setValue('ormawa_logo', '');
         } catch (\Throwable $e) {
         }
+    }
+
+    /**
+     * Memastikan gambar/logo pada paragraf yang terpusat (center) dalam dokumen DOCX
+     * dikonversi ke DrawingML standar dan/atau memiliki properti perataan tengah presisi,
+     * sehingga selalu berada tepat di tengah halaman saat diunduh maupun dipratinjau.
+     */
+    public function ensureDocxImagesCentered(string $docxFilePath): void
+    {
+        if (! file_exists($docxFilePath) || ! class_exists(\ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxFilePath) !== true) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        if (! $xml) {
+            $zip->close();
+
+            return;
+        }
+
+        $modified = false;
+        $imageCounter = 0;
+
+        // 1. Tangani paragraf yang memiliki perataan tengah (<w:jc w:val="center"/>) dan memuat <w:pict>
+        // Konversi legacy VML <w:pict> ke DrawingML <w:drawing><wp:inline> standar modern
+        $pattern = '/<w:p(?:\s+[^>]*)?>(?:(?!<\/w:p>).)*?<w:jc[^>]*w:val=[\'"]center[\'"][^>]*\/?>(?:(?!<\/w:p>).)*?<w:pict[^>]*>.*?<v:imagedata[^>]*r:id=[\'"]([^\'"]+)[\'"][^>]*>.*?<\/w:pict>(?:(?!<\/w:p>).)*?<\/w:p>/s';
+
+        $converted = preg_replace_callback($pattern, function (array $matches) use (&$modified, &$imageCounter): string {
+            $pXml = $matches[0];
+            if (preg_match('/<w:pict[^>]*>.*?<v:shape[^>]*style=[\'"]([^\'"]*)[\'"][^>]*>.*?<v:imagedata[^>]*r:id=[\'"]([^\'"]+)[\'"][^>]*>.*?<\/w:pict>/s', $pXml, $imgMatch)) {
+                $style = $imgMatch[1];
+                $rId = $imgMatch[2];
+                $imageCounter++;
+
+                // Deteksi dimensi gambar jika tersedia pada style v:shape (default 130px)
+                $cx = 1238250;
+                $cy = 1238250;
+                if (preg_match('/width:\s*(\d+(?:\.\d+)?)(px|pt)?/i', $style, $wMatch)) {
+                    $val = (float) $wMatch[1];
+                    $unit = strtolower($wMatch[2] ?? 'px');
+                    $cx = (int) ($unit === 'pt' ? $val * 12700 : $val * 9525);
+                }
+                if (preg_match('/height:\s*(\d+(?:\.\d+)?)(px|pt)?/i', $style, $hMatch)) {
+                    $val = (float) $hMatch[1];
+                    $unit = strtolower($hMatch[2] ?? 'px');
+                    $cy = (int) ($unit === 'pt' ? $val * 12700 : $val * 9525);
+                }
+
+                $modified = true;
+                $drawingId = 999 + $imageCounter;
+                $drawingName = ($imageCounter === 1) ? 'Logo Ormawa' : 'Tanda Tangan ' . $drawingId;
+                $drawingXml = '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="' . $drawingId . '" name="' . $drawingName . '"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="' . $drawingId . '" name="' . $drawingName . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="' . $rId . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+
+                return str_replace($imgMatch[0], $drawingXml, $pXml);
+            }
+
+            return $pXml;
+        }, $xml);
+
+        // 2. Jika masih ada <v:shape> yang tersisa dalam dokumen, pastikan stylenya memuat perataan tengah otomatis
+        if (preg_match('/<v:shape[^>]+style=[\'"]([^\'"]*)[\'"]/', $converted)) {
+            $converted = preg_replace_callback('/(<v:shape[^>]+style=[\'"])([^\'"]*)([\'"][^>]*>)/', function (array $m): string {
+                $style = $m[2];
+                if (! str_contains($style, 'margin-left:auto')) {
+                    $style .= ';margin-left:auto;margin-right:auto;text-align:center;position:relative;';
+                }
+
+                return $m[1] . $style . $m[3];
+            }, $converted);
+            $modified = true;
+        }
+
+        if ($modified) {
+            $zip->addFromString('word/document.xml', $converted);
+        }
+
+        $zip->close();
     }
 }

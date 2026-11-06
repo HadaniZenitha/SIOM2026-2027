@@ -215,6 +215,68 @@ test('approver cannot store an empty or invalid drawn digital signature', functi
     expect($user->fresh()->signature_path)->toBeNull();
 });
 
+test('non approver such as sekretaris cannot manage signature from the dashboard', function () {
+    Storage::fake('local');
+    $role = Role::create(['name' => 'sekretaris_ormawa', 'display_name' => 'Sekretaris Ormawa']);
+    $user = User::factory()->create(['role_id' => $role->id]);
+
+    Livewire::actingAs($user)
+        ->test(DashboardIndex::class)
+        ->set('signatureFile', UploadedFile::fake()->image('signature.png'))
+        ->call('uploadSignature')
+        ->assertForbidden();
+
+    expect($user->fresh()->signature_path)->toBeNull();
+});
+
+test('sekretaris can store and manage chairman signature via canvas and file upload in proposal form', function () {
+    Storage::fake('local');
+    $fixture = createApprovalFlowFixture();
+    $secretary = $fixture['submitter'];
+
+    $img = imagecreatetruecolor(100, 50);
+    imagesavealpha($img, true);
+    $transparent = imagecolorallocatealpha($img, 0, 0, 0, 127);
+    imagefill($img, 0, 0, $transparent);
+    $color = imagecolorallocate($img, 15, 23, 42);
+    imageline($img, 10, 10, 90, 40, $color);
+    ob_start();
+    imagepng($img);
+    $pngBytes = ob_get_clean();
+    imagedestroy($img);
+    $validDataUrl = 'data:image/png;base64,'.base64_encode($pngBytes);
+
+    // Test drawn canvas signature
+    $test = Livewire::actingAs($secretary)
+        ->test(CreateSubmission::class)
+        ->set('step', 3)
+        ->call('saveChairmanDrawnSignature', $validDataUrl)
+        ->assertHasNoErrors()
+        ->assertSee('Tanda tangan digital Ketua Pelaksana berhasil disimpan.');
+
+    $chairPath = $test->get('chairman_signature_path');
+    expect($chairPath)->toStartWith('signatures/chair_sig_')
+        ->and(Storage::disk('local')->exists($chairPath))->toBeTrue();
+
+    // Test file upload signature
+    $test->set('chairmanSignatureFile', UploadedFile::fake()->image('chairman_uploaded.png'))
+        ->call('uploadChairmanSignature')
+        ->assertHasNoErrors()
+        ->assertSee('Tanda tangan berkas Ketua Pelaksana berhasil diunggah.');
+
+    $uploadedPath = $test->get('chairman_signature_path');
+    expect($uploadedPath)->toStartWith('signatures/')
+        ->and(Storage::disk('local')->exists($uploadedPath))->toBeTrue();
+
+    // Test saving draft saves chairman_signature_path
+    $test->set('activity_name', 'Kegiatan Uji TTD Ketupel')
+        ->call('saveDraft');
+
+    $saved = Submission::where('activity_name', 'Kegiatan Uji TTD Ketupel')->first();
+    expect($saved)->not->toBeNull()
+        ->and($saved->chairman_signature_path)->toBe($uploadedPath);
+});
+
 test('approver dashboard shows approved proposals and the complete decision history', function () {
     $fixture = createApprovalFlowFixture();
     $submission = $fixture['submission'];
@@ -355,6 +417,52 @@ test('sekretaris dapat menyimpan draft dengan tujuan kegiatan sebagai teks', fun
         ->firstOrFail();
 
     expect($submission->purpose)->toBe("Meningkatkan pengetahuan peserta.\nMendorong kolaborasi.");
+});
+
+test('sekretaris dapat menyimpan draft meskipun terdapat baris rab kosong tambahan', function () {
+    $fixture = createApprovalFlowFixture();
+
+    Livewire::actingAs($fixture['submitter'])
+        ->test(CreateSubmission::class)
+        ->set('activity_name', 'Workshop Teknologi')
+        ->set('items.0.item_name', 'Banner')
+        ->set('items.0.qty', 5)
+        ->set('items.0.unit', 'pcs')
+        ->set('items.0.price', 20000)
+        ->call('addItem') // Menambahkan baris ke-2 yang sengaja dikosongkan
+        ->call('saveDraft')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('sekretaris.pengajuan', absolute: false));
+
+    $submission = Submission::query()
+        ->where('activity_name', 'Workshop Teknologi')
+        ->latest('id')
+        ->firstOrFail();
+
+    expect($submission->status)->toBe('draft')
+        ->and($submission->items)->toHaveCount(1)
+        ->and((float) $submission->total_amount)->toBe(100000.0);
+});
+
+test('sistem otomatis mendeteksi nominal harga pada kolom satuan dan menghitung total rab secara otomatis', function () {
+    $fixture = createApprovalFlowFixture();
+
+    $component = Livewire::actingAs($fixture['submitter'])
+        ->test(CreateSubmission::class)
+        ->set('activity_name', 'Webinar AI')
+        ->set('items.0.item_name', 'Banner Kegiatan')
+        ->set('items.0.qty', 5)
+        ->set('items.0.price', 0)
+        // User salah memasukkan nominal 20000 pada kolom satuan
+        ->set('items.0.unit', '20000');
+
+    // Sistem secara otomatis memindahkan 20000 ke price dan mengubah unit menjadi 'pcs'
+    $component->assertSet('items.0.price', 20000)
+        ->assertSet('items.0.unit', 'pcs');
+
+    // Total dan subtotal terhitung otomatis: 5 * 20000 = 100000
+    expect($component->instance()->itemTotal(0))->toBe(100000.0)
+        ->and($component->instance()->grandTotal)->toBe(100000.0);
 });
 
 test('sekretaris dapat memperbaiki dan mengirim ulang pengajuan pada tahap revisi', function () {

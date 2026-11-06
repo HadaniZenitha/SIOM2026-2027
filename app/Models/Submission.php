@@ -44,6 +44,7 @@ class Submission extends Model
 
         'chairman_name',
         'chairman_nim',
+        'chairman_signature_path',
         'pembina_name',
         'pembina_nuptk',
         'kaprodi_name',
