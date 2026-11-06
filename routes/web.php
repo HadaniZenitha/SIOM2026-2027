@@ -48,6 +48,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/ormawa', App\Livewire\Admin\Ormawa\Index::class)
             ->name('ormawa');
 
+        Route::get('/ormawa/{ormawaId}/logo', App\Livewire\Sekretaris\Logo\Index::class)
+            ->name('ormawa.logo');
+
         Route::get('/program-studi', App\Livewire\Admin\ProgramStudi\Index::class)
             ->name('program-studi');
 
@@ -82,6 +85,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/anggota', App\Livewire\Sekretaris\Anggota\Index::class)
                 ->middleware('menu:sekretaris.anggota')
                 ->name('anggota');
+
+            Route::get('/logo', App\Livewire\Sekretaris\Logo\Index::class)
+                ->middleware('menu:sekretaris.logo')
+                ->name('logo');
 
             Route::get('/pengajuan', App\Livewire\Sekretaris\Pengajuan\Index::class)
                 ->middleware('menu:sekretaris.pengajuan')
@@ -187,8 +194,10 @@ Route::middleware('auth')->group(function () {
             ->name('lpj.file');
         Route::get('/signed-lpj/{lpj}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamSignedLpj'])
             ->name('signed-lpj.file');
-        Route::get('/attachment/{document}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamAttachment'])
+        Route::get('/attachment/{id}/file', [App\Http\Controllers\DocumentPreviewController::class, 'streamAttachment'])
             ->name('attachment.file');
+        Route::get('/attachment/{id}', [App\Http\Controllers\DocumentPreviewController::class, 'viewAttachment'])
+            ->name('attachment');
 
         // Halaman penuh dokumen (Dedicated Standalone Preview Page)
         Route::get('/proposal/{submission}', [App\Http\Controllers\DocumentPreviewController::class, 'viewProposal'])

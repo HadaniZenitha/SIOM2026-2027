@@ -124,7 +124,9 @@
                 </div>
 
                 @if ($submission_id)
-                    @php($selectedSubmission = $submissions->firstWhere('id', $submission_id))
+                    @php
+                        $selectedSubmission = $submissions->firstWhere('id', $submission_id);
+                    @endphp
                     @if ($selectedSubmission)
                         <div class="siom-lpj-summary">
                             <div>
@@ -298,6 +300,14 @@
                 <div class="siom-admin-card-body">
                     <h2 class="h5 mb-2">Dokumen tersimpan</h2>
                     @foreach ($documents as $document)
+                        @php
+                            $docExt = strtolower(pathinfo($document->file_name, PATHINFO_EXTENSION));
+                            $docFormat = match ($docExt) {
+                                'pdf' => 'pdf',
+                                'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg' => 'png',
+                                default => 'docx',
+                            };
+                        @endphp
                         <div class="siom-doc-row" wire:key="lpj-document-{{ $document->id }}">
                             <div>
                                 <span class="siom-admin-badge siom-admin-badge-finished">
@@ -306,7 +316,7 @@
                                 <span>{{ $document->file_name }}</span>
                             </div>
                             <div class="siom-admin-actions mb-0" style="margin-top: 0;">
-                                <button class="siom-admin-btn siom-admin-btn-sm" type="button" onclick="window.openDocPreview('{{ route('documents.preview.attachment.file', $document->id) }}', '{{ route('documents.preview.attachment.file', $document->id) }}', 'Lampiran: {{ addslashes($document->file_name) }}', '{{ str_ends_with(strtolower($document->file_name), '.pdf') ? 'pdf' : 'docx' }}')">
+                                <button class="siom-admin-btn siom-admin-btn-sm" type="button" onclick="window.openDocPreview('{{ route('documents.preview.attachment.file', $document->id) }}', '{{ route('documents.preview.attachment', $document->id) }}', 'Lampiran: {{ addslashes($document->file_name) }}', '{{ $docFormat }}')">
                                     <i class="bi bi-eye"></i> Lihat
                                 </button>
                                 <button class="siom-admin-btn siom-admin-btn-sm" type="button" wire:click="downloadDocument({{ $document->id }})">Unduh</button>

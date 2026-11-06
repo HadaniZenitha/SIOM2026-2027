@@ -22,7 +22,13 @@
             <!-- Tab Switcher -->
             <div class="siom-doc-tab-switcher">
                 <button type="button" class="siom-tab-btn active" id="btn-tab-docx" onclick="switchPreviewTab('docx')">
-                    <i class="bi bi-file-earmark-word"></i> Dokumen Asli (Visual)
+                    @if (($format ?? '') === 'pdf')
+                        <i class="bi bi-file-earmark-pdf text-danger"></i> Dokumen PDF (Visual)
+                    @elseif (($format ?? '') === 'image')
+                        <i class="bi bi-file-earmark-image text-primary"></i> Berkas Gambar (Visual)
+                    @else
+                        <i class="bi bi-file-earmark-word text-primary"></i> Dokumen Asli (Visual)
+                    @endif
                 </button>
                 <button type="button" class="siom-tab-btn" id="btn-tab-html" onclick="switchPreviewTab('html')">
                     <i class="bi bi-file-earmark-text"></i> Tampilan Web
@@ -54,20 +60,20 @@
     </header>
 
     <main class="siom-doc-main-container">
-        <!-- Tab 1: DOCX / PDF Visual View -->
+        <!-- Tab 1: DOCX / PDF / Image Visual View -->
         <div id="preview-tab-docx-content" class="siom-tab-pane active">
             <div id="page-preview-loading" class="siom-doc-loading-panel">
                 <div class="spinner-border text-primary" role="status" style="width: 2.75rem; height: 2.75rem;">
                     <span class="visually-hidden">Memuat...</span>
                 </div>
                 <h4 class="mt-3 mb-1 fw-bold text-dark">Memuat Tampilan Dokumen</h4>
-                <p class="text-muted small">Menyusun halaman dokumen Word resmi secara visual...</p>
+                <p class="text-muted small">Menyusun tampilan dokumen secara visual...</p>
             </div>
 
             <div id="page-preview-error" class="siom-doc-error-panel" style="display: none;">
                 <i class="bi bi-exclamation-triangle-fill text-warning fs-1 mb-2"></i>
-                <h5 class="fw-bold text-dark">Tidak dapat merender berkas visual Word</h5>
-                <p class="text-muted small mb-3">Dokumen tetap dapat diunduh langsung untuk dibuka di Microsoft Word atau dilihat pada tab "Tampilan Web".</p>
+                <h5 class="fw-bold text-dark">Tidak dapat merender berkas langsung</h5>
+                <p class="text-muted small mb-3">Dokumen tetap dapat diunduh langsung untuk dibuka di aplikasi lokal atau dilihat pada tab "Tampilan Web".</p>
                 <div class="d-flex justify-content-center gap-2">
                     <button type="button" class="siom-admin-btn" onclick="switchPreviewTab('html')">
                         <i class="bi bi-file-earmark-text"></i> Buka Tampilan Web
@@ -78,6 +84,19 @@
                 </div>
             </div>
 
+            <!-- PDF Viewer -->
+            <div id="page-pdf-container" style="display: none; width: 100%; height: 100%; min-height: 80vh;">
+                <iframe id="page-pdf-viewer" class="siom-pdf-page-iframe" style="width: 100%; height: 82vh; border: 2px solid #0f172a; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: #ffffff;" title="Pratinjau PDF"></iframe>
+            </div>
+
+            <!-- Image Viewer (PNG / JPG / WEBP) -->
+            <div id="page-image-container" style="display: none; width: 100%; min-height: 75vh;" class="d-flex flex-column align-items-center justify-content-center py-4">
+                <div class="siom-image-canvas p-3 mb-2" style="background: #ffffff; background-image: linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(-45deg, #f1f5f9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f1f5f9 75%), linear-gradient(-45deg, transparent 75%, #f1f5f9 75%); background-size: 20px 20px; border: 2px solid #0f172a; border-radius: 14px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15), 5px 5px 0 #0f172a;">
+                    <img id="page-image-viewer" src="" alt="Pratinjau Gambar" class="siom-image-preview-img" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 6px; transition: transform 0.2s ease-out;">
+                </div>
+            </div>
+
+            <!-- DOCX Viewer -->
             <div id="page-docx-viewer" class="siom-docx-pages-wrapper"></div>
         </div>
 
@@ -85,12 +104,20 @@
         <div id="preview-tab-html-content" class="siom-tab-pane" style="display: none;">
             <article class="siom-paper-sheet">
                 <!-- Kop Surat Kampus -->
-                <header class="siom-kop-header">
+                <header class="siom-kop-header position-relative">
+                    @php
+                        $docOrmawa = $submission?->ormawa ?? $lpj?->ormawa;
+                    @endphp
+                    @if ($docOrmawa)
+                        <div class="text-center mb-2">
+                            <img src="{{ $docOrmawa->logoUrl() }}" alt="Logo {{ $docOrmawa->name }}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: contain; border: 2px solid #0f172a; padding: 3px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        </div>
+                    @endif
                     <h2>INSTITUT TEKNOLOGI SAINS DAN KESEHATAN RS dr. SOEPRAOEN</h2>
                     @if ($submission)
-                        <h3>{{ $submission->ormawa?->name ?? 'ORGANISASI MAHASISWA' }}</h3>
+                        <h3>{{ mb_strtoupper($submission->ormawa?->name ?? 'ORGANISASI MAHASISWA') }}</h3>
                     @elseif ($lpj)
-                        <h3>{{ $lpj->ormawa?->name ?? 'ORGANISASI MAHASISWA' }}</h3>
+                        <h3>{{ mb_strtoupper($lpj->ormawa?->name ?? 'ORGANISASI MAHASISWA') }}</h3>
                     @endif
                     <p class="siom-kop-address">Jl. Sudanco Supriadi No. 22 Sukun, Kota Malang, Jawa Timur 65147</p>
                     <hr class="siom-kop-divider">
@@ -234,10 +261,68 @@
                         </div>
                     @endif
 
+                    <!-- Tabel Rundown -->
+                    @if ($submission->rundowns && $submission->rundowns->isNotEmpty())
+                        <div class="siom-sheet-section">
+                            <h5>H. RUNDOWN / SUSUNAN ACARA</h5>
+                            <table class="table table-bordered siom-sheet-table mb-3">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;" class="text-center">No.</th>
+                                        <th style="width: 170px;" class="text-center">Waktu</th>
+                                        <th>Kegiatan</th>
+                                        <th style="width: 170px;">Penanggung Jawab</th>
+                                        <th style="width: 140px;">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($submission->rundowns as $rIdx => $rundown)
+                                        <tr>
+                                            <td class="text-center">{{ $rIdx + 1 }}</td>
+                                            <td class="text-center">{{ $rundown->time_slot }}</td>
+                                            <td>{{ $rundown->event_name }}</td>
+                                            <td>{{ $rundown->pic ?: '-' }}</td>
+                                            <td>{{ $rundown->note ?: '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    <!-- Tabel Susunan Panitia -->
+                    @if ($submission->committees && $submission->committees->isNotEmpty())
+                        <div class="siom-sheet-section">
+                            <h5>I. SUSUNAN KEPANITIAAN</h5>
+                            <table class="table table-bordered siom-sheet-table mb-3">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;" class="text-center">No.</th>
+                                        <th>Nama Lengkap</th>
+                                        <th style="width: 190px;">Jabatan / Divisi</th>
+                                        <th style="width: 150px;">Status Struktural</th>
+                                        <th style="width: 140px;">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($submission->committees as $cIdx => $committee)
+                                        <tr>
+                                            <td class="text-center">{{ $cIdx + 1 }}</td>
+                                            <td>{{ $committee->name }}</td>
+                                            <td><strong>{{ $committee->committee_role ?: '-' }}</strong></td>
+                                            <td>{{ $committee->structural_role ?: '-' }}</td>
+                                            <td>{{ $committee->description ?: '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
                     <!-- Tabel RAB -->
                     @if ($submission->items->isNotEmpty())
                         <div class="siom-sheet-section">
-                            <h5>H. RINCIAN ANGGARAN BIAYA (RAB)</h5>
+                            <h5>J. RINCIAN ANGGARAN BIAYA (RAB)</h5>
                             <table class="table table-bordered siom-sheet-rab-table">
                                 <thead class="table-light">
                                     <tr>
@@ -252,7 +337,7 @@
                                     @foreach ($submission->items as $idx => $item)
                                         <tr>
                                             <td class="text-center">{{ $idx + 1 }}</td>
-                                            <td>{{ $item->item_name }}</td>
+                                            <td class="fw-bold">{{ $item->item_name }}</td>
                                             <td class="text-center font-monospace">{{ $item->formatted_qty }}</td>
                                             <td class="text-end">Rp {{ number_format((float) $item->price, 0, ',', '.') }}</td>
                                             <td class="text-end">Rp {{ number_format((float) $item->total_price, 0, ',', '.') }}</td>
@@ -318,12 +403,16 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @php($totalRealized = 0)
+                                    @php
+                                        $totalRealized = 0;
+                                    @endphp
                                     @foreach ($lpj->items as $idx => $item)
-                                        @php($totalRealized += (float) $item->total_price)
+                                        @php
+                                            $totalRealized += (float) $item->total_price;
+                                        @endphp
                                         <tr>
                                             <td class="text-center">{{ $idx + 1 }}</td>
-                                            <td>{{ $item->item_name }}</td>
+                                            <td class="fw-bold">{{ $item->item_name }}</td>
                                             <td class="text-center font-monospace">{{ $item->formatted_qty }}</td>
                                             <td class="text-end">Rp {{ number_format((float) $item->price, 0, ',', '.') }}</td>
                                             <td class="text-end">Rp {{ number_format((float) $item->total_price, 0, ',', '.') }}</td>
@@ -355,7 +444,7 @@
                                                     <small class="text-muted">{{ ucfirst($doc->type) }}</small>
                                                 </div>
                                             </div>
-                                            <a href="{{ route('documents.preview.attachment.file', $doc->id) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <a href="{{ route('documents.preview.attachment', $doc->id) }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-eye"></i> Lihat
                                             </a>
                                         </div>
@@ -364,6 +453,12 @@
                             </div>
                         </div>
                     @endif
+                @else
+                    <div class="text-center py-5">
+                        <i class="bi bi-file-earmark-arrow-down fs-1 text-muted"></i>
+                        <h5 class="fw-bold mt-2">Lampiran Berkas</h5>
+                        <p class="text-muted small">Silakan lihat tampilan berkas pada tab "Visual Dokumen" atau unduh melalui tombol di atas.</p>
+                    </div>
                 @endif
             </article>
         </div>
@@ -605,17 +700,73 @@ function resetPageZoom() {
 }
 
 function updatePageZoom() {
-    const container = document.getElementById('page-docx-viewer');
+    const docxContainer = document.getElementById('page-docx-viewer');
+    const imgEl = document.getElementById('page-image-viewer');
     const label = document.getElementById('page-zoom-label');
     if (label) label.textContent = Math.round(pageZoom * 100) + '%';
-    if (container) container.style.transform = `scale(${pageZoom})`;
+    if (docxContainer && docxContainer.style.display !== 'none') {
+        docxContainer.style.transform = `scale(${pageZoom})`;
+    }
+    if (imgEl) {
+        imgEl.style.transform = `scale(${pageZoom})`;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     const fileUrl = '{{ $fileUrl }}';
+    const declaredFormat = '{{ $format ?? '' }}';
     const container = document.getElementById('page-docx-viewer');
+    const pdfContainer = document.getElementById('page-pdf-container');
+    const pdfViewer = document.getElementById('page-pdf-viewer');
+    const imageContainer = document.getElementById('page-image-container');
+    const imageViewer = document.getElementById('page-image-viewer');
     const loading = document.getElementById('page-preview-loading');
     const errorEl = document.getElementById('page-preview-error');
+    const zoomControls = document.getElementById('topbar-zoom-controls');
+
+    const urlLower = fileUrl.toLowerCase();
+    const isImage = declaredFormat === 'image' || /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(urlLower);
+    const isPdf = declaredFormat === 'pdf' || urlLower.endsWith('.pdf');
+
+    if (isImage) {
+        if (container) container.style.display = 'none';
+        if (pdfContainer) pdfContainer.style.display = 'none';
+        if (imageContainer) imageContainer.style.display = 'flex';
+        if (zoomControls) zoomControls.style.display = 'flex';
+
+        imageViewer.onload = function() {
+            loading.style.display = 'none';
+        };
+        imageViewer.onerror = function() {
+            loading.style.display = 'none';
+            errorEl.style.display = 'block';
+        };
+        imageViewer.src = fileUrl;
+        return;
+    }
+
+    if (isPdf) {
+        if (container) container.style.display = 'none';
+        if (imageContainer) imageContainer.style.display = 'none';
+        if (pdfContainer) pdfContainer.style.display = 'flex';
+        if (zoomControls) zoomControls.style.display = 'none';
+
+        pdfViewer.onload = function() {
+            loading.style.display = 'none';
+        };
+        pdfViewer.onerror = function() {
+            loading.style.display = 'none';
+            errorEl.style.display = 'block';
+        };
+        pdfViewer.src = fileUrl;
+        return;
+    }
+
+    // Default DOCX
+    if (pdfContainer) pdfContainer.style.display = 'none';
+    if (imageContainer) imageContainer.style.display = 'none';
+    if (container) container.style.display = 'flex';
+    if (zoomControls) zoomControls.style.display = 'flex';
 
     fetch(fileUrl, {
         headers: {
@@ -624,9 +775,29 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .then(res => {
         if (!res.ok) throw new Error('Status: ' + res.status);
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+        if (contentType.includes('image/')) {
+            if (container) container.style.display = 'none';
+            if (imageContainer) imageContainer.style.display = 'flex';
+            imageViewer.onload = () => { loading.style.display = 'none'; };
+            imageViewer.src = fileUrl;
+            return null;
+        }
+
+        if (contentType.includes('application/pdf')) {
+            if (container) container.style.display = 'none';
+            if (pdfContainer) pdfContainer.style.display = 'flex';
+            if (zoomControls) zoomControls.style.display = 'none';
+            pdfViewer.onload = () => { loading.style.display = 'none'; };
+            pdfViewer.src = fileUrl;
+            return null;
+        }
+
         return res.blob();
     })
     .then(blob => {
+        if (!blob) return;
         return docx.renderAsync(blob, container, null, {
             className: 'docx',
             inWrapper: true,

@@ -86,8 +86,42 @@
                 <!-- DOCX Pages Container -->
                 <div id="siom-docx-pages-container" class="siom-docx-pages-wrapper"></div>
 
-                <!-- PDF / Iframe Container -->
-                <iframe id="siom-pdf-preview-iframe" class="siom-pdf-preview-iframe" style="display: none;" title="Pratinjau PDF"></iframe>
+                <!-- PDF Container -->
+                <div id="siom-pdf-preview-container" class="siom-pdf-preview-wrapper" style="display: none;">
+                    <div class="siom-pdf-preview-toolbar">
+                        <span class="small text-muted"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Penampil Dokumen PDF Resmi</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <a id="siom-pdf-fullscreen-btn" href="#" target="_blank" class="btn btn-sm btn-outline-secondary" style="font-size: 0.78rem; padding: 0.2rem 0.65rem;">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Buka Layar Penuh
+                            </a>
+                        </div>
+                    </div>
+                    <iframe id="siom-pdf-preview-iframe" class="siom-pdf-preview-iframe" title="Pratinjau PDF"></iframe>
+                </div>
+
+                <!-- Image (PNG, JPG, WEBP) Container -->
+                <div id="siom-image-preview-container" class="siom-image-preview-wrapper" style="display: none;">
+                    <div class="siom-image-preview-toolbar">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small fw-semibold text-muted">
+                                <i class="bi bi-image text-primary me-1"></i> Penampil Berkas Gambar / Bukti Lampiran
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.78rem; padding: 0.2rem 0.65rem;" onclick="window.rotateDocImage()" title="Putar 90 Derajat">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Putar 90°
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.78rem; padding: 0.2rem 0.65rem;" onclick="window.fitDocImage()" title="Paskan Ukuran">
+                                <i class="bi bi-arrows-angle-expand me-1"></i> Paskan
+                            </button>
+                        </div>
+                    </div>
+                    <div class="siom-image-canvas-viewport" id="siom-image-canvas-viewport">
+                        <div class="siom-image-canvas" id="siom-image-canvas">
+                            <img id="siom-image-preview-img" src="" alt="Pratinjau Dokumen Gambar" class="siom-image-preview-img">
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -344,11 +378,83 @@
 
 .siom-pdf-preview-iframe {
     width: 100%;
-    height: 100%;
+    flex: 1;
     min-height: 75vh;
     border: none;
     border-radius: 8px;
     background: #ffffff;
+}
+
+/* Image Preview Layout */
+.siom-image-preview-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.siom-image-preview-toolbar,
+.siom-pdf-preview-toolbar {
+    width: 100%;
+    max-width: 950px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.85rem;
+    margin-bottom: 0.85rem;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.siom-image-canvas-viewport {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 1.5rem 1rem;
+}
+
+.siom-image-canvas {
+    padding: 12px;
+    background: #ffffff;
+    background-image: 
+        linear-gradient(45deg, #f1f5f9 25%, transparent 25%), 
+        linear-gradient(-45deg, #f1f5f9 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #f1f5f9 75%), 
+        linear-gradient(-45deg, transparent 75%, #f1f5f9 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    border: 2px solid #0f172a;
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15), 5px 5px 0 #0f172a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 95%;
+    max-height: 82vh;
+}
+
+.siom-image-preview-img {
+    max-width: 100%;
+    max-height: 75vh;
+    object-fit: contain;
+    border-radius: 6px;
+    transition: transform 0.2s ease-out;
+    transform-origin: center center;
+    user-select: none;
+}
+
+.siom-pdf-preview-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 /* Print Handling */
@@ -369,7 +475,9 @@
     .siom-doc-preview-head,
     .siom-doc-preview-backdrop,
     .siom-doc-close-btn,
-    .siom-doc-preview-actions {
+    .siom-doc-preview-actions,
+    .siom-image-preview-toolbar,
+    .siom-pdf-preview-toolbar {
         display: none !important;
     }
     .siom-doc-preview-card {
@@ -387,22 +495,28 @@
         border: none !important;
         page-break-after: always !important;
     }
+    .siom-image-canvas {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
 }
 </style>
 
 <script>
 (function() {
     let currentZoom = 1.0;
+    let currentRotation = 0;
+    let currentDocType = 'docx'; // 'docx' | 'pdf' | 'image'
 
     window.openDocPreview = function(options) {
-        // Mendukung pemanggilan openDocPreview(fileUrl, pageUrl, title, format)
         if (typeof options === 'string') {
             options = {
                 fileUrl: arguments[0] || '',
                 pageUrl: arguments[1] || arguments[0] || '#',
                 title: arguments[2] || 'Pratinjau Dokumen',
-                format: arguments[3] || 'docx',
-                downloadUrl: arguments[0] || '#'
+                format: arguments[3] || '',
+                downloadUrl: arguments[4] || arguments[0] || '#'
             };
         }
 
@@ -416,24 +530,24 @@
         const loadingEl = document.getElementById('siom-doc-preview-loading');
         const errorEl = document.getElementById('siom-doc-preview-error');
         const docxContainer = document.getElementById('siom-docx-pages-container');
+        const pdfContainer = document.getElementById('siom-pdf-preview-container');
         const pdfIframe = document.getElementById('siom-pdf-preview-iframe');
+        const pdfFullscreenBtn = document.getElementById('siom-pdf-fullscreen-btn');
+        const imageContainer = document.getElementById('siom-image-preview-container');
+        const imageEl = document.getElementById('siom-image-preview-img');
         const zoomControls = document.getElementById('siom-doc-zoom-controls');
 
         if (!modal) return;
 
         // Reset state
         currentZoom = 1.0;
+        currentRotation = 0;
         updateZoomDisplay();
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
 
         titleEl.textContent = options.title || 'Pratinjau Dokumen';
         badgeEl.textContent = options.documentType || 'Dokumen';
-        
-        const isPdf = (options.format === 'pdf') || (options.fileUrl && options.fileUrl.toLowerCase().endsWith('.pdf'));
-        formatEl.textContent = isPdf ? 'PDF' : 'DOCX';
-        formatEl.style.background = isPdf ? '#fee2e2' : '#e2e8f0';
-        formatEl.style.color = isPdf ? '#b91c1c' : '#334155';
 
         const fileUrl = options.fileUrl || '#';
         const pageUrl = options.pageUrl || fileUrl;
@@ -442,77 +556,183 @@
         newtabEl.href = pageUrl;
         downloadEl.href = downloadUrl;
         errorDownloadEl.href = downloadUrl;
+        if (pdfFullscreenBtn) pdfFullscreenBtn.href = pageUrl;
 
         loadingEl.style.display = 'flex';
         errorEl.style.display = 'none';
         docxContainer.innerHTML = '';
         docxContainer.style.display = 'none';
-        pdfIframe.style.display = 'none';
+        if (pdfContainer) pdfContainer.style.display = 'none';
+        if (imageContainer) imageContainer.style.display = 'none';
         pdfIframe.src = 'about:blank';
+        imageEl.src = '';
 
-        if (isPdf) {
-            zoomControls.style.display = 'none';
-            pdfIframe.src = fileUrl;
-            pdfIframe.onload = function() {
-                loadingEl.style.display = 'none';
-                pdfIframe.style.display = 'block';
-            };
-            pdfIframe.onerror = function() {
-                showError('Gagal memuat pratinjau berkas PDF.');
-            };
+        // Deteksi Tipe Format Berkas
+        const urlLower = (fileUrl || '').toLowerCase();
+        const titleLower = ((options.title || '') + ' ' + (options.fileName || '')).toLowerCase();
+        const rawFormat = (options.format || '').toLowerCase();
+
+        const isExplicitImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'image', 'gambar'].includes(rawFormat)
+            || /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(urlLower)
+            || /\.(png|jpe?g|webp|gif|svg)$/i.test(titleLower);
+
+        const isExplicitPdf = rawFormat === 'pdf'
+            || urlLower.endsWith('.pdf')
+            || titleLower.endsWith('.pdf')
+            || (urlLower.includes('/file') && titleLower.includes('.pdf'));
+
+        if (isExplicitImage) {
+            renderAsImage(fileUrl, titleLower || rawFormat);
             return;
         }
 
-        // Render DOCX menggunakan docx-preview
-        zoomControls.style.display = 'flex';
-        docxContainer.style.display = 'flex';
-
-        if (typeof docx === 'undefined') {
-            // Coba muat docx-preview secara dinamis jika belum tersedia
-            loadDocxPreviewLibraries().then(() => {
-                fetchAndRenderDocx(fileUrl, docxContainer, loadingEl);
-            }).catch(err => {
-                showError('Library penampil Word (docx-preview) belum siap dimuat. Anda dapat mengunduh berkas secara langsung.');
-            });
+        if (isExplicitPdf) {
+            renderAsPdf(fileUrl);
             return;
         }
 
-        fetchAndRenderDocx(fileUrl, docxContainer, loadingEl);
+        // Jika belum pasti atau bertipe docx, periksa respon terlebih dahulu
+        renderWithContentDetection(fileUrl);
     };
 
-    function fetchAndRenderDocx(fileUrl, container, loadingEl) {
+    function renderAsImage(fileUrl, filename) {
+        currentDocType = 'image';
+        const formatEl = document.getElementById('siom-doc-preview-format');
+        const zoomControls = document.getElementById('siom-doc-zoom-controls');
+        const imageContainer = document.getElementById('siom-image-preview-container');
+        const imageEl = document.getElementById('siom-image-preview-img');
+        const loadingEl = document.getElementById('siom-doc-preview-loading');
+
+        let imgFormat = 'PNG';
+        if (filename.includes('.jpg') || filename.includes('.jpeg')) imgFormat = 'JPG';
+        else if (filename.includes('.webp')) imgFormat = 'WEBP';
+        else if (filename.includes('.svg')) imgFormat = 'SVG';
+
+        formatEl.textContent = imgFormat;
+        formatEl.style.background = '#ede9fe';
+        formatEl.style.color = '#5b21b6';
+        formatEl.style.border = '1.5px solid #8b5cf6';
+
+        zoomControls.style.display = 'flex';
+        imageContainer.style.display = 'flex';
+
+        imageEl.onload = function() {
+            loadingEl.style.display = 'none';
+            currentZoom = 1.0;
+            currentRotation = 0;
+            updateZoomDisplay();
+        };
+
+        imageEl.onerror = function() {
+            showError('Gagal memuat berkas gambar. Berkas mungkin tidak ditemukan di server.');
+        };
+
+        imageEl.src = fileUrl;
+    }
+
+    function renderAsPdf(fileUrl) {
+        currentDocType = 'pdf';
+        const formatEl = document.getElementById('siom-doc-preview-format');
+        const zoomControls = document.getElementById('siom-doc-zoom-controls');
+        const pdfContainer = document.getElementById('siom-pdf-preview-container');
+        const pdfIframe = document.getElementById('siom-pdf-preview-iframe');
+        const loadingEl = document.getElementById('siom-doc-preview-loading');
+
+        formatEl.textContent = 'PDF';
+        formatEl.style.background = '#fee2e2';
+        formatEl.style.color = '#991b1b';
+        formatEl.style.border = '1.5px solid #ef4444';
+
+        zoomControls.style.display = 'none';
+        pdfContainer.style.display = 'flex';
+
+        pdfIframe.onload = function() {
+            loadingEl.style.display = 'none';
+        };
+
+        pdfIframe.onerror = function() {
+            showError('Gagal memuat pratinjau berkas PDF.');
+        };
+
+        pdfIframe.src = fileUrl;
+    }
+
+    function renderWithContentDetection(fileUrl) {
+        const loadingEl = document.getElementById('siom-doc-preview-loading');
+        const formatEl = document.getElementById('siom-doc-preview-format');
+        const zoomControls = document.getElementById('siom-doc-zoom-controls');
+        const docxContainer = document.getElementById('siom-docx-pages-container');
+
         fetch(fileUrl, {
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document, */*'
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
         .then(response => {
             if (!response.ok) {
                 throw new Error('Gagal mengambil berkas (' + response.status + ' ' + response.statusText + ')');
             }
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+
+            if (contentType.includes('image/')) {
+                renderAsImage(fileUrl, contentType);
+                return null;
+            }
+
+            if (contentType.includes('application/pdf')) {
+                renderAsPdf(fileUrl);
+                return null;
+            }
+
+            // DOCX format
+            currentDocType = 'docx';
+            formatEl.textContent = 'DOCX';
+            formatEl.style.background = '#dbeafe';
+            formatEl.style.color = '#1e40af';
+            formatEl.style.border = '1.5px solid #3b82f6';
+            zoomControls.style.display = 'flex';
+            docxContainer.style.display = 'flex';
+
             return response.blob();
         })
         .then(blob => {
-            container.innerHTML = '';
-            return docx.renderAsync(blob, container, null, {
-                className: 'docx',
-                inWrapper: true,
-                ignoreWidth: false,
-                ignoreHeight: false,
-                ignoreFonts: false,
-                breakPages: true,
-                experimental: false,
-                useBase64URL: true,
-                trimXml: true
-            });
+            if (!blob) return;
+
+            if (typeof docx === 'undefined') {
+                loadDocxPreviewLibraries().then(() => {
+                    renderDocxBlob(blob, docxContainer, loadingEl);
+                }).catch(() => {
+                    showError('Library penampil Word belum siap dimuat. Anda dapat mengunduh berkas secara langsung.');
+                });
+            } else {
+                renderDocxBlob(blob, docxContainer, loadingEl);
+            }
+        })
+        .catch(err => {
+            console.error('Doc preview error:', err);
+            showError('Gagal memuat pratinjau: ' + (err.message || 'Terjadi kesalahan jaringan atau berkas tidak ditemukan.'));
+        });
+    }
+
+    function renderDocxBlob(blob, container, loadingEl) {
+        container.innerHTML = '';
+        docx.renderAsync(blob, container, null, {
+            className: 'docx',
+            inWrapper: true,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            ignoreFonts: false,
+            breakPages: true,
+            experimental: false,
+            useBase64URL: true,
+            trimXml: true
         })
         .then(() => {
             loadingEl.style.display = 'none';
         })
         .catch(err => {
-            console.error('DOCX preview error:', err);
-            showError('Gagal merender dokumen DOCX: ' + (err.message || 'Format tidak didukung.'));
+            console.error('DOCX render error:', err);
+            showError('Format Word tidak dapat diproses: ' + (err.message || 'Berkas tidak kompatibel.'));
         });
     }
 
@@ -521,11 +741,13 @@
         const errorEl = document.getElementById('siom-doc-preview-error');
         const errorMsgEl = document.getElementById('siom-doc-preview-error-msg');
         const docxContainer = document.getElementById('siom-docx-pages-container');
-        const pdfIframe = document.getElementById('siom-pdf-preview-iframe');
+        const pdfContainer = document.getElementById('siom-pdf-preview-container');
+        const imageContainer = document.getElementById('siom-image-preview-container');
 
         loadingEl.style.display = 'none';
         docxContainer.style.display = 'none';
-        pdfIframe.style.display = 'none';
+        if (pdfContainer) pdfContainer.style.display = 'none';
+        if (imageContainer) imageContainer.style.display = 'none';
         if (errorMsgEl) errorMsgEl.textContent = message;
         errorEl.style.display = 'flex';
     }
@@ -545,7 +767,6 @@
                 document.head.appendChild(s);
             });
 
-            // Muat JSZip lalu docx-preview
             loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')
                 .then(() => loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.3/dist/docx-preview.min.js'))
                 .then(resolve)
@@ -562,11 +783,13 @@
             if (pdfIframe) pdfIframe.src = 'about:blank';
             const docxContainer = document.getElementById('siom-docx-pages-container');
             if (docxContainer) docxContainer.innerHTML = '';
+            const imageEl = document.getElementById('siom-image-preview-img');
+            if (imageEl) imageEl.src = '';
         }
     };
 
     window.zoomDocPreview = function(delta) {
-        currentZoom = Math.min(2.0, Math.max(0.5, currentZoom + delta));
+        currentZoom = Math.min(3.0, Math.max(0.3, currentZoom + delta));
         updateZoomDisplay();
     };
 
@@ -575,14 +798,64 @@
         updateZoomDisplay();
     };
 
+    window.rotateDocImage = function() {
+        currentRotation = (currentRotation + 90) % 360;
+        updateZoomDisplay();
+    };
+
+    window.fitDocImage = function() {
+        currentZoom = 1.0;
+        currentRotation = 0;
+        updateZoomDisplay();
+    };
+
     function updateZoomDisplay() {
-        const wrapper = document.getElementById('siom-docx-pages-container');
         const label = document.getElementById('siom-doc-zoom-label');
         if (label) label.textContent = Math.round(currentZoom * 100) + '%';
-        if (wrapper) wrapper.style.transform = `scale(${currentZoom})`;
+
+        if (currentDocType === 'image') {
+            const img = document.getElementById('siom-image-preview-img');
+            if (img) {
+                img.style.transform = `scale(${currentZoom}) rotate(${currentRotation}deg)`;
+            }
+        } else if (currentDocType === 'docx') {
+            const wrapper = document.getElementById('siom-docx-pages-container');
+            if (wrapper) {
+                wrapper.style.transform = `scale(${currentZoom})`;
+            }
+        }
     }
 
     window.printDocPreview = function() {
+        if (currentDocType === 'image') {
+            const img = document.getElementById('siom-image-preview-img');
+            if (img && img.src) {
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                    const doc = printWindow.document;
+                    doc.title = 'Cetak Berkas Lampiran';
+                    doc.body.style.margin = '0';
+                    doc.body.style.display = 'flex';
+                    doc.body.style.alignItems = 'center';
+                    doc.body.style.justifyContent = 'center';
+                    doc.body.style.minHeight = '100vh';
+                    doc.body.style.background = '#ffffff';
+
+                    const printImg = doc.createElement('img');
+                    printImg.src = img.src;
+                    printImg.style.maxWidth = '100%';
+                    printImg.style.maxHeight = '100vh';
+                    printImg.style.objectFit = 'contain';
+                    doc.body.appendChild(printImg);
+
+                    printImg.onload = function() {
+                        printWindow.focus();
+                        printWindow.print();
+                    };
+                    return;
+                }
+            }
+        }
         window.print();
     };
 

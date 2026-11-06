@@ -52,6 +52,7 @@
                     <thead>
                         <tr>
                             <th>No.</th>
+                            <th>Logo</th>
                             <th>Kode</th>
                             <th>Nama Organisasi</th>
                             <th>Kategori / Prodi</th>
@@ -67,6 +68,9 @@
                         @forelse ($ormawas as $ormawa)
                             <tr wire:key="ormawa-{{ $ormawa->id }}">
                                 <td>{{ $ormawas->firstItem() + $loop->index }}</td>
+                                <td class="text-center" style="width: 50px;">
+                                    <img src="{{ $ormawa->logoUrl() }}" alt="Logo" style="width: 34px; height: 34px; border-radius: 50%; object-fit: contain; border: 1.5px solid #0f172a; background: #fff;" title="{{ $ormawa->hasCustomLogo() ? 'Logo Kustom' : 'Logo Default' }}">
+                                </td>
                                 <td><strong>{{ $ormawa->code }}</strong></td>
                                 <td>{{ $ormawa->name }}</td>
                                 <td>
@@ -101,6 +105,9 @@
                                         >
                                             <i class="bi bi-cash-stack"></i> Atur Pagu
                                         </button>
+                                        <a href="{{ route('admin.ormawa.logo', $ormawa->id) }}" class="siom-admin-btn siom-admin-btn-sm" title="Atur Logo Presisi">
+                                            <i class="bi bi-aspect-ratio"></i> Logo
+                                        </a>
                                         <button type="button" class="siom-admin-btn siom-admin-btn-sm" wire:click="edit({{ $ormawa->id }})">
                                             <i class="bi bi-pencil"></i> Edit
                                         </button>
