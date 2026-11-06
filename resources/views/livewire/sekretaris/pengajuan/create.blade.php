@@ -915,44 +915,106 @@
                     @endif
 
                     @if ($step === 4)
-                        <h5 class="fw-bold mb-1">4. Rencana Anggaran Biaya (RAB)</h5>
-                        <small class="text-muted d-block mb-4">Geser tabel ke samping pada layar kecil.</small>
-                        <div class="table-responsive mb-3">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                            <div>
+                                <h5 class="fw-bold mb-1">4. Rencana Anggaran Biaya (RAB)</h5>
+                                <small class="text-muted">Masukkan rincian kebutuhan kegiatan. Subtotal dan total anggaran dihitung secara otomatis dan realtime.</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-bold align-self-start align-self-md-auto" wire:click="addItem">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah Baris RAB
+                            </button>
+                        </div>
+
+                        <div class="table-responsive mb-3 border rounded-3 p-2 bg-white shadow-sm">
                             <table class="table align-middle mb-0">
-                                <thead>
+                                <thead class="table-light">
                                     <tr>
-                                        <th>No</th>
-                                        <th>Rincian Kebutuhan</th>
-                                        <th>Qty</th>
-                                        <th>Satuan</th>
-                                        <th>Harga Satuan</th>
-                                        <th class="text-end">Subtotal</th>
-                                        <th></th>
+                                        <th style="width: 48px;" class="text-center">No</th>
+                                        <th style="min-width: 220px;">Rincian Kebutuhan</th>
+                                        <th style="width: 120px;" class="text-center">Qty (Jumlah)</th>
+                                        <th style="width: 130px;" class="text-center">Satuan Unit</th>
+                                        <th style="min-width: 180px;">Harga Satuan (Rp)</th>
+                                        <th class="text-end" style="width: 160px;">Subtotal (Rp)</th>
+                                        <th style="width: 48px;" class="text-center"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($items as $index => $item)
                                         <tr wire:key="rab-item-{{ $index }}">
-                                            <td>{{ $index + 1 }}</td>
-                                            <td><input type="text" class="form-control" wire:model="items.{{ $index }}.item_name" placeholder="Spanduk / Nasi Kotak"></td>
-                                            <td><input type="number" min="0.01" step="0.01" class="form-control" wire:model.live="items.{{ $index }}.qty"></td>
-                                            <td><input type="text" class="form-control" wire:model="items.{{ $index }}.unit" placeholder="pcs"></td>
-                                            <td><input type="number" min="0" step="1000" class="form-control" wire:model.live="items.{{ $index }}.price"></td>
-                                            <td class="text-end fw-bold">Rp {{ number_format($this->itemTotal($index), 0, ',', '.') }}</td>
-                                            <td><button type="button" class="btn btn-sm btn-outline-danger" wire:click="removeItem({{ $index }})">✕</button></td>
+                                            <td class="text-center text-muted fw-bold">{{ $index + 1 }}</td>
+                                            <td>
+                                                <input type="text"
+                                                       class="form-control @error('items.'.$index.'.item_name') is-invalid @enderror"
+                                                       wire:model.live.debounce.250ms="items.{{ $index }}.item_name"
+                                                       placeholder="Contoh: Banner / Konsumsi / Sertifikat">
+                                                @error('items.'.$index.'.item_name')
+                                                    <div class="invalid-feedback d-block small">{{ $message }}</div>
+                                                @enderror
+                                            </td>
+                                            <td>
+                                                <input type="number"
+                                                       min="0.01"
+                                                       step="0.01"
+                                                       class="form-control text-center @error('items.'.$index.'.qty') is-invalid @enderror"
+                                                       wire:model.live.debounce.250ms="items.{{ $index }}.qty"
+                                                       placeholder="1">
+                                                @error('items.'.$index.'.qty')
+                                                    <div class="invalid-feedback d-block small">{{ $message }}</div>
+                                                @enderror
+                                            </td>
+                                            <td>
+                                                <input type="text"
+                                                       class="form-control text-center @error('items.'.$index.'.unit') is-invalid @enderror"
+                                                       wire:model.live.debounce.250ms="items.{{ $index }}.unit"
+                                                       placeholder="pcs / lembar">
+                                                @error('items.'.$index.'.unit')
+                                                    <div class="invalid-feedback d-block small">{{ $message }}</div>
+                                                @enderror
+                                            </td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-light fw-bold text-muted small">Rp</span>
+                                                    <input type="number"
+                                                           min="0"
+                                                           step="1000"
+                                                           class="form-control text-end @error('items.'.$index.'.price') is-invalid @enderror"
+                                                           wire:model.live.debounce.250ms="items.{{ $index }}.price"
+                                                           placeholder="0">
+                                                </div>
+                                                @error('items.'.$index.'.price')
+                                                    <div class="invalid-feedback d-block small">{{ $message }}</div>
+                                                @enderror
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="fw-bold {{ $this->itemTotal($index) > 0 ? 'text-success' : 'text-muted' }}">
+                                                    Rp {{ number_format($this->itemTotal($index), 0, ',', '.') }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (count($items) > 1)
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            wire:click="removeItem({{ $index }})"
+                                                            title="Hapus baris ini">✕</button>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
-                                <tfoot>
+                                <tfoot class="table-light">
                                     <tr>
-                                        <th colspan="5" class="text-end">TOTAL</th>
-                                        <th class="text-end text-success">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</th>
+                                        <th colspan="5" class="text-end py-3 fs-6">TOTAL ANGGARAN:</th>
+                                        <th class="text-end py-3 text-success fs-5 fw-bold">
+                                            Rp {{ number_format($this->grandTotal, 0, ',', '.') }}
+                                        </th>
                                         <th></th>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
-                        <button type="button" class="btn btn-outline-primary" wire:click="addItem">+ Tambah Baris RAB</button>
+                        <button type="button" class="btn btn-outline-primary" wire:click="addItem">
+                            <i class="bi bi-plus-lg me-1"></i> Tambah Baris RAB
+                        </button>
                     @endif
 
                     <div class="d-flex justify-content-between align-items-center mt-5 pt-3 border-top">

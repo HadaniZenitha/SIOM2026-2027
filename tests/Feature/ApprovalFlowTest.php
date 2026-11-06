@@ -357,6 +357,52 @@ test('sekretaris dapat menyimpan draft dengan tujuan kegiatan sebagai teks', fun
     expect($submission->purpose)->toBe("Meningkatkan pengetahuan peserta.\nMendorong kolaborasi.");
 });
 
+test('sekretaris dapat menyimpan draft meskipun terdapat baris rab kosong tambahan', function () {
+    $fixture = createApprovalFlowFixture();
+
+    Livewire::actingAs($fixture['submitter'])
+        ->test(CreateSubmission::class)
+        ->set('activity_name', 'Workshop Teknologi')
+        ->set('items.0.item_name', 'Banner')
+        ->set('items.0.qty', 5)
+        ->set('items.0.unit', 'pcs')
+        ->set('items.0.price', 20000)
+        ->call('addItem') // Menambahkan baris ke-2 yang sengaja dikosongkan
+        ->call('saveDraft')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('sekretaris.pengajuan', absolute: false));
+
+    $submission = Submission::query()
+        ->where('activity_name', 'Workshop Teknologi')
+        ->latest('id')
+        ->firstOrFail();
+
+    expect($submission->status)->toBe('draft')
+        ->and($submission->items)->toHaveCount(1)
+        ->and((float) $submission->total_amount)->toBe(100000.0);
+});
+
+test('sistem otomatis mendeteksi nominal harga pada kolom satuan dan menghitung total rab secara otomatis', function () {
+    $fixture = createApprovalFlowFixture();
+
+    $component = Livewire::actingAs($fixture['submitter'])
+        ->test(CreateSubmission::class)
+        ->set('activity_name', 'Webinar AI')
+        ->set('items.0.item_name', 'Banner Kegiatan')
+        ->set('items.0.qty', 5)
+        ->set('items.0.price', 0)
+        // User salah memasukkan nominal 20000 pada kolom satuan
+        ->set('items.0.unit', '20000');
+
+    // Sistem secara otomatis memindahkan 20000 ke price dan mengubah unit menjadi 'pcs'
+    $component->assertSet('items.0.price', 20000)
+        ->assertSet('items.0.unit', 'pcs');
+
+    // Total dan subtotal terhitung otomatis: 5 * 20000 = 100000
+    expect($component->instance()->itemTotal(0))->toBe(100000.0)
+        ->and($component->instance()->grandTotal)->toBe(100000.0);
+});
+
 test('sekretaris dapat memperbaiki dan mengirim ulang pengajuan pada tahap revisi', function () {
     $fixture = createApprovalFlowFixture();
     $submission = $fixture['submission'];
