@@ -219,7 +219,9 @@ class DocumentGeneratorService
         $directory = 'generated_documents/signed';
         Storage::disk('local')->makeDirectory($directory);
         $path = $directory.'/'.$filename.'_'.Str::uuid().'.docx';
-        $processor->saveAs(Storage::disk('local')->path($path));
+        $fullPath = Storage::disk('local')->path($path);
+        $processor->saveAs($fullPath);
+        $this->ensureDocxImagesCentered($fullPath);
 
         return $path;
     }
@@ -693,6 +695,7 @@ class DocumentGeneratorService
         $outputPath = Storage::disk('public')->path($directory.'/'.$filename);
 
         $processor->saveAs($outputPath);
+        $this->ensureDocxImagesCentered($outputPath);
 
         return $directory.'/'.$filename;
     }
@@ -1094,5 +1097,83 @@ class DocumentGeneratorService
             $processor->setValue('ormawa_logo', '');
         } catch (\Throwable $e) {
         }
+    }
+
+    /**
+     * Memastikan gambar/logo pada paragraf yang terpusat (center) dalam dokumen DOCX
+     * dikonversi ke DrawingML standar dan/atau memiliki properti perataan tengah presisi,
+     * sehingga selalu berada tepat di tengah halaman saat diunduh maupun dipratinjau.
+     */
+    public function ensureDocxImagesCentered(string $docxFilePath): void
+    {
+        if (! file_exists($docxFilePath) || ! class_exists(\ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxFilePath) !== true) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        if (! $xml) {
+            $zip->close();
+
+            return;
+        }
+
+        $modified = false;
+
+        // 1. Tangani paragraf yang memiliki perataan tengah (<w:jc w:val="center"/>) dan memuat <w:pict>
+        // Konversi legacy VML <w:pict> ke DrawingML <w:drawing><wp:inline> standar modern
+        $pattern = '/<w:p(?:\s+[^>]*)?>(?:(?!<\/w:p>).)*?<w:jc[^>]*w:val=[\'"]center[\'"][^>]*\/?>(?:(?!<\/w:p>).)*?<w:pict[^>]*>.*?<v:imagedata[^>]*r:id=[\'"]([^\'"]+)[\'"][^>]*>.*?<\/w:pict>(?:(?!<\/w:p>).)*?<\/w:p>/s';
+
+        $converted = preg_replace_callback($pattern, function (array $matches) use (&$modified): string {
+            $pXml = $matches[0];
+            if (preg_match('/<w:pict[^>]*>.*?<v:shape[^>]*style=[\'"]([^\'"]*)[\'"][^>]*>.*?<v:imagedata[^>]*r:id=[\'"]([^\'"]+)[\'"][^>]*>.*?<\/w:pict>/s', $pXml, $imgMatch)) {
+                $style = $imgMatch[1];
+                $rId = $imgMatch[2];
+
+                // Deteksi dimensi gambar jika tersedia pada style v:shape (default 130px)
+                $cx = 1238250;
+                $cy = 1238250;
+                if (preg_match('/width:\s*(\d+(?:\.\d+)?)(px|pt)?/i', $style, $wMatch)) {
+                    $val = (float) $wMatch[1];
+                    $unit = strtolower($wMatch[2] ?? 'px');
+                    $cx = (int) ($unit === 'pt' ? $val * 12700 : $val * 9525);
+                }
+                if (preg_match('/height:\s*(\d+(?:\.\d+)?)(px|pt)?/i', $style, $hMatch)) {
+                    $val = (float) $hMatch[1];
+                    $unit = strtolower($hMatch[2] ?? 'px');
+                    $cy = (int) ($unit === 'pt' ? $val * 12700 : $val * 9525);
+                }
+
+                $modified = true;
+                $drawingXml = '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="999" name="Logo Ormawa"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="999" name="Logo Ormawa"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="' . $rId . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+
+                return str_replace($imgMatch[0], $drawingXml, $pXml);
+            }
+
+            return $pXml;
+        }, $xml);
+
+        // 2. Jika masih ada <v:shape> yang tersisa dalam dokumen, pastikan stylenya memuat perataan tengah otomatis
+        if (preg_match('/<v:shape[^>]+style=[\'"]([^\'"]*)[\'"]/', $converted)) {
+            $converted = preg_replace_callback('/(<v:shape[^>]+style=[\'"])([^\'"]*)([\'"][^>]*>)/', function (array $m): string {
+                $style = $m[2];
+                if (! str_contains($style, 'margin-left:auto')) {
+                    $style .= ';margin-left:auto;margin-right:auto;text-align:center;position:relative;';
+                }
+
+                return $m[1] . $style . $m[3];
+            }, $converted);
+            $modified = true;
+        }
+
+        if ($modified) {
+            $zip->addFromString('word/document.xml', $converted);
+        }
+
+        $zip->close();
     }
 }

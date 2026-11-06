@@ -456,3 +456,46 @@ it('generates a signed LPJ with all approver signatures and embeds them properly
 
     expect($documentXml)->not->toContain('${signature_');
 });
+
+test('generator memastikan logo cover pada paragraf berpusat dikonversi ke drawingml terpusat secara presisi', function () {
+    $tempDir = storage_path('app/temp');
+    if (! is_dir($tempDir)) {
+        mkdir($tempDir, 0755, true);
+    }
+
+    $tempDocx = $tempDir.'/test_logo_center_'.uniqid().'.docx';
+    $zip = new ZipArchive();
+    $zip->open($tempDocx, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $mockXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:v="urn:schemas-microsoft-com:vml">
+    <w:body>
+        <w:p>
+            <w:pPr><w:jc w:val="center"/></w:pPr>
+            <w:r>
+                <w:pict>
+                    <v:shape id="logoShape" style="width:130px;height:130px">
+                        <v:imagedata r:id="rId1" o:title=""/>
+                    </v:shape>
+                </w:pict>
+            </w:r>
+        </w:p>
+    </w:body>
+</w:document>';
+    $zip->addFromString('word/document.xml', $mockXml);
+    $zip->close();
+
+    $generator = app(DocumentGeneratorService::class);
+    $generator->ensureDocxImagesCentered($tempDocx);
+
+    $checkZip = new ZipArchive();
+    expect($checkZip->open($tempDocx))->toBeTrue();
+    $resultXml = $checkZip->getFromName('word/document.xml');
+    $checkZip->close();
+    @unlink($tempDocx);
+
+    // Harus dikonversi menjadi DrawingML inline dengan perataan tengah dan rId1
+    expect($resultXml)->toContain('<w:drawing>')
+        ->and($resultXml)->toContain('<wp:inline')
+        ->and($resultXml)->toContain('r:embed="rId1"')
+        ->and($resultXml)->toContain('Logo Ormawa');
+});
