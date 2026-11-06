@@ -253,7 +253,12 @@ class DocumentGeneratorService
             'timelines',
             'committees',
             'rundowns',
+            'approvalSteps.role',
         ]);
+
+        if ($lpj) {
+            $lpj->loadMissing('approvalSteps.role');
+        }
 
         $ormawa = $submission->ormawa;
         $isBem  = $ormawa && ($ormawa->isBem() || $ormawa->isDpm());
@@ -477,7 +482,7 @@ class DocumentGeneratorService
         }
 
         /* 6. PEJABAT & PENANDATANGAN — sesuai kategori ormawa */
-        $this->injectOfficialSignatures($processor, $submission);
+        $this->injectOfficialSignatures($processor, $submission, $lpj);
 
         /* 7. PLACEHOLDER LPJ KHUSUS (foto/kwitansi) — isi dengan teks kosong jika tidak ada */
         $variables = $processor->getVariables();
@@ -712,8 +717,11 @@ class DocumentGeneratorService
         return $directory.'/'.$filename;
     }
 
-    protected function injectOfficialSignatures(TemplateProcessor $processor, Submission $submission): void
-    {
+    protected function injectOfficialSignatures(
+        TemplateProcessor $processor,
+        Submission $submission,
+        ?Lpj $lpj = null
+    ): void {
         $submitter = $submission->submitter;
         $ormawa    = $submission->ormawa;
 
@@ -794,11 +802,12 @@ class DocumentGeneratorService
         $processor->setValues($values);
 
         /* 6.1 SISIPKAN TANDA TANGAN CANVAS SESUAI ROLE */
-        $this->injectCanvasSignatures($processor, $submission, $isBem, $ormawa, $pembina, $kaprodi, $submitter);
+        $this->injectCanvasSignatures($processor, $submission, $isBem, $ormawa, $pembina, $kaprodi, $submitter, $lpj);
     }
 
     /**
-     * Sisipkan tanda tangan digital (canvas) yang telah disimpan pada akun masing-masing role.
+     * Sisipkan tanda tangan digital (canvas) yang HANYA muncul ketika role yang bersangkutan
+     * sudah menyetujui (ACC / status = 'approved') pengajuan proposal atau LPJ tersebut.
      */
     protected function injectCanvasSignatures(
         TemplateProcessor $processor,
@@ -807,7 +816,8 @@ class DocumentGeneratorService
         ?Ormawa $ormawa,
         ?User $pembina,
         ?User $kaprodi,
-        ?User $submitter
+        ?User $submitter,
+        ?Lpj $lpj = null
     ): void {
         $variables = $processor->getVariables();
         $sigPlaceholders = array_filter($variables, fn ($v) => str_starts_with($v, 'signature_'));
@@ -818,93 +828,67 @@ class DocumentGeneratorService
 
         $signatures = [];
 
-        // 1. Pembina Ormawa
-        $pembinaSig = null;
-        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
-            $pembinaSig = $submission->approvalSteps()
-                ->whereHas('role', fn ($q) => $q->where('name', 'pembina_ormawa'))
-                ->whereNotNull('signature_path')
-                ->latest('id')
-                ->value('signature_path');
-        }
-        if (! $pembinaSig) {
-            $pembinaSig = $pembina?->signature_path;
-        }
-        if (! $pembinaSig) {
-            $pembinaSig = User::query()
-                ->whereHas('role', fn ($q) => $q->where('name', 'pembina_ormawa'))
-                ->whereNotNull('signature_path')
-                ->value('signature_path');
-        }
+        // Ambil tahapan approval dari LPJ (jika dokumen LPJ) atau dari Submission (jika dokumen proposal)
+        $steps = $lpj
+            ? ($lpj->relationLoaded('approvalSteps') ? $lpj->approvalSteps : $lpj->approvalSteps()->with('role')->get())
+            : ($submission->relationLoaded('approvalSteps') ? $submission->approvalSteps : $submission->approvalSteps()->with('role')->get());
+
+        // 1. Pembina Ormawa (Hanya muncul jika sudah ACC / approved)
+        $pembinaSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'pembina_ormawa'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
         if ($pembinaPath = $this->resolveSignatureFilePath($pembinaSig)) {
             $signatures['signature_pembina_ormawa'] = $pembinaPath;
         }
 
-        // 2. Kaprodi
-        $kaprodiSig = null;
-        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
-            $kaprodiSig = $submission->approvalSteps()
-                ->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))
-                ->whereNotNull('signature_path')
-                ->latest('id')
-                ->value('signature_path');
-        }
-        if (! $kaprodiSig && ! $isBem && ! ($ormawa && $ormawa->isUkm())) {
-            $kaprodiSig = $kaprodi?->signature_path;
-            if (! $kaprodiSig) {
-                $kaprodiSig = User::query()
-                    ->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))
-                    ->whereNotNull('signature_path')
-                    ->value('signature_path');
-            }
-        }
+        // 2. Kaprodi (Hanya muncul jika sudah ACC / approved)
+        $kaprodiSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'kaprodi'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
         if ($kaprodiPath = $this->resolveSignatureFilePath($kaprodiSig)) {
             $signatures['signature_kaprodi'] = $kaprodiPath;
         }
 
-        // 3. Kabag Kemahasiswaan
-        $kabagSig = null;
-        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
-            $kabagSig = $submission->approvalSteps()
-                ->whereHas('role', fn ($q) => $q->where('name', 'kabag_kemahasiswaan'))
-                ->whereNotNull('signature_path')
-                ->latest('id')
-                ->value('signature_path');
-        }
-        if (! $kabagSig) {
-            $kabagSig = User::query()
-                ->whereHas('role', fn ($q) => $q->where('name', 'kabag_kemahasiswaan'))
-                ->whereNotNull('signature_path')
-                ->value('signature_path');
-        }
+        // 3. Kabag Kemahasiswaan (Hanya muncul jika sudah ACC / approved)
+        $kabagSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'kabag_kemahasiswaan'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
         if ($kabagPath = $this->resolveSignatureFilePath($kabagSig)) {
             $signatures['signature_kabag_kemahasiswaan'] = $kabagPath;
         }
 
-        // 4. Warek III
-        $warekSig = null;
-        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
-            $warekSig = $submission->approvalSteps()
-                ->whereHas('role', fn ($q) => $q->where('name', 'warek'))
-                ->whereNotNull('signature_path')
-                ->latest('id')
-                ->value('signature_path');
-        }
-        if (! $warekSig) {
-            $warekSig = User::query()
-                ->whereHas('role', fn ($q) => $q->where('name', 'warek'))
-                ->whereNotNull('signature_path')
-                ->value('signature_path');
-        }
+        // 4. Warek III (Hanya muncul jika sudah ACC / approved)
+        $warekSig = $steps
+            ->filter(fn ($s) => $s->role?->name === 'warek'
+                && (($s->status instanceof \BackedEnum ? $s->status->value : (string) $s->status) === 'approved')
+                && ! empty($s->signature_path))
+            ->last()
+            ?->signature_path;
+
         if ($warekPath = $this->resolveSignatureFilePath($warekSig)) {
             $signatures['signature_warek'] = $warekPath;
         }
 
-        // 5. Ketua Pelaksana / Ketua Ormawa / Presma
+        // 5. Ketua Pelaksana / Ketua Ormawa / Presma (Penandatangan Pengaju Kegiatan)
         $chairmanSig = $submission->chairman_signature_path;
+        if (! $chairmanSig && $lpj) {
+            $chairmanSig = $lpj->submission?->chairman_signature_path;
+        }
         $chairmanPath = $this->resolveSignatureFilePath($chairmanSig);
 
-        $leaderSig = $chairmanSig ?: $submitter?->signature_path;
+        $leaderSig = $chairmanSig ?: ($lpj?->creator?->signature_path ?: $submitter?->signature_path);
         if (! $leaderSig && $submission->ormawa_id) {
             $leaderSig = User::query()
                 ->where('ormawa_id', $submission->ormawa_id)

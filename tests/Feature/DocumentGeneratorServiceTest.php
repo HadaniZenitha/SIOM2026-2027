@@ -530,13 +530,22 @@ test('generator menyisipkan tanda tangan canvas untuk role terkait ke dalam doku
     $submitterSig = UploadedFile::fake()->image('ketua.png')->store('signatures', 'local');
     $fixture['submitter']->update(['signature_path' => $submitterSig]);
 
-    // Berikan tanda tangan canvas pada masing-masing role pejabat
-    foreach (['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $roleName) {
+    // Berikan tanda tangan canvas pada masing-masing role pejabat dan catat approval step yang disetujui (ACC)
+    foreach (['pembina_ormawa', 'kaprodi', 'kabag_kemahasiswaan', 'warek'] as $idx => $roleName) {
         $role = Role::firstOrCreate(['name' => $roleName], ['display_name' => $roleName]);
         $sigPath = UploadedFile::fake()->image($roleName.'.png')->store('signatures', 'local');
-        User::factory()->create([
+        $approver = User::factory()->create([
             'role_id' => $role->id,
             'ormawa_id' => $roleName === 'pembina_ormawa' ? $fixture['ormawa']->id : null,
+            'signature_path' => $sigPath,
+        ]);
+        \App\Models\ApprovalStep::create([
+            'submission_id' => $fixture['submission']->id,
+            'role_id' => $role->id,
+            'sequence' => $idx + 1,
+            'status' => 'approved',
+            'approved_by' => $approver->id,
+            'approved_at' => now(),
             'signature_path' => $sigPath,
         ]);
     }
@@ -597,4 +606,100 @@ test('generator memprioritaskan chairman_signature_path dari submission untuk ta
 
     expect($documentXml)->not->toContain('${signature_ketua_pelaksana}')
         ->and($documentXml)->not->toContain('${signature_ketua_ormawa}');
+});
+
+test('tanda tangan approver hanya muncul di dokumen setelah role tersebut menyetujui (ACC)', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $fixture = createDocumentGenerationFixture();
+
+    $templatePath = 'document-templates/proposal_acc_test.docx';
+    Storage::disk('public')->makeDirectory('document-templates');
+    $word = new PhpWord;
+    $section = $word->addSection();
+    $section->addText('${activity_name}');
+    $section->addText('${signature_pembina_ormawa}');
+    $section->addText('${signature_kaprodi}');
+    $word->save(Storage::disk('public')->path($templatePath), 'Word2007');
+
+    DocumentTemplate::create([
+        'period_id' => $fixture['period']->id,
+        'created_by' => $fixture['submitter']->id,
+        'name' => 'Template Proposal ACC Test',
+        'type' => 'proposal',
+        'file_name' => 'proposal_acc_test.docx',
+        'file_path' => $templatePath,
+        'version' => 1,
+        'is_active' => true,
+    ]);
+
+    $rolePembina = Role::firstOrCreate(['name' => 'pembina_ormawa'], ['display_name' => 'Pembina']);
+    $roleKaprodi = Role::firstOrCreate(['name' => 'kaprodi'], ['display_name' => 'Kaprodi']);
+
+    $pembinaSig = UploadedFile::fake()->image('pembina.png')->store('signatures', 'local');
+    $kaprodiSig = UploadedFile::fake()->image('kaprodi.png')->store('signatures', 'local');
+
+    $pembinaUser = User::factory()->create([
+        'role_id' => $rolePembina->id,
+        'ormawa_id' => $fixture['ormawa']->id,
+        'signature_path' => $pembinaSig,
+    ]);
+    $kaprodiUser = User::factory()->create([
+        'role_id' => $roleKaprodi->id,
+        'signature_path' => $kaprodiSig,
+    ]);
+
+    // Hanya pembina yang sudah ACC, kaprodi belum (status pending, signature_path null)
+    \App\Models\ApprovalStep::create([
+        'submission_id' => $fixture['submission']->id,
+        'role_id' => $rolePembina->id,
+        'sequence' => 1,
+        'status' => 'approved',
+        'approved_by' => $pembinaUser->id,
+        'approved_at' => now(),
+        'signature_path' => $pembinaSig,
+    ]);
+    $kaprodiStep = \App\Models\ApprovalStep::create([
+        'submission_id' => $fixture['submission']->id,
+        'role_id' => $roleKaprodi->id,
+        'sequence' => 2,
+        'status' => 'pending',
+        'approved_by' => null,
+        'approved_at' => null,
+        'signature_path' => null,
+    ]);
+
+    $generator = app(DocumentGeneratorService::class);
+    $relPath1 = $generator->generateProposal($fixture['submission']);
+
+    $archive1 = new ZipArchive;
+    expect($archive1->open(Storage::disk('public')->path($relPath1)))->toBeTrue();
+    $media1 = collect(range(0, $archive1->numFiles - 1))
+        ->map(fn (int $i) => $archive1->getNameIndex($i))
+        ->filter(fn (?string $n) => $n && str_starts_with($n, 'word/media/'))
+        ->count();
+    $archive1->close();
+
+    // Hanya 1 tanda tangan (Pembina yang sudah ACC)
+    expect($media1)->toBe(1);
+
+    // Sekarang Kaprodi juga ACC
+    $kaprodiStep->update([
+        'status' => 'approved',
+        'approved_by' => $kaprodiUser->id,
+        'approved_at' => now(),
+        'signature_path' => $kaprodiSig,
+    ]);
+
+    $relPath2 = $generator->generateProposal($fixture['submission']->fresh());
+    $archive2 = new ZipArchive;
+    expect($archive2->open(Storage::disk('public')->path($relPath2)))->toBeTrue();
+    $media2 = collect(range(0, $archive2->numFiles - 1))
+        ->map(fn (int $i) => $archive2->getNameIndex($i))
+        ->filter(fn (?string $n) => $n && str_starts_with($n, 'word/media/'))
+        ->count();
+    $archive2->close();
+
+    // Sekarang 2 tanda tangan tersemat karena keduanya sudah ACC
+    expect($media2)->toBe(2);
 });
