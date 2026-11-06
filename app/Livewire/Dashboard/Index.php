@@ -37,6 +37,8 @@ class Index extends Component
             'kaprodi',
             'kabag_kemahasiswaan',
             'warek',
+            'sekretaris_ormawa',
+            'superadmin',
         ]), 403);
 
         $this->validate([
@@ -78,6 +80,8 @@ class Index extends Component
             'kaprodi',
             'kabag_kemahasiswaan',
             'warek',
+            'sekretaris_ormawa',
+            'superadmin',
         ]), 403);
 
         if (! preg_match('/^data:image\/(png|jpeg);base64,/', $signatureDataUrl)) {
@@ -283,8 +287,17 @@ class Index extends Component
                 ->get();
         }
 
+        $canManageSignature = $user->hasAnyRole([
+            'pembina_ormawa',
+            'kaprodi',
+            'kabag_kemahasiswaan',
+            'warek',
+            'sekretaris_ormawa',
+            'superadmin',
+        ]);
+
         $savedSignaturePreview = null;
-        if ($isApprover && $user->signature_path && Storage::disk('local')->exists($user->signature_path)) {
+        if ($canManageSignature && $user->signature_path && Storage::disk('local')->exists($user->signature_path)) {
             $savedSignaturePreview = 'data:image/png;base64,'.base64_encode((string) Storage::disk('local')->get($user->signature_path));
         }
 
@@ -300,6 +313,7 @@ class Index extends Component
             'budgetActivities' => $budgetActivities,
             'realizedAmount' => $realizedAmount,
             'isApprover' => $isApprover,
+            'canManageSignature' => $canManageSignature,
             'savedSignaturePreview' => $savedSignaturePreview,
         ]);
     }

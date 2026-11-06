@@ -564,6 +564,179 @@ class DocumentGeneratorService
         ];
 
         $processor->setValues($values);
+
+        /* 6.1 SISIPKAN TANDA TANGAN CANVAS SESUAI ROLE */
+        $this->injectCanvasSignatures($processor, $submission, $isBem, $ormawa, $pembina, $kaprodi, $submitter);
+    }
+
+    /**
+     * Sisipkan tanda tangan digital (canvas) yang telah disimpan pada akun masing-masing role.
+     */
+    protected function injectCanvasSignatures(
+        TemplateProcessor $processor,
+        Submission $submission,
+        bool $isBem,
+        ?Ormawa $ormawa,
+        ?User $pembina,
+        ?User $kaprodi,
+        ?User $submitter
+    ): void {
+        $variables = $processor->getVariables();
+        $sigPlaceholders = array_filter($variables, fn ($v) => str_starts_with($v, 'signature_'));
+
+        if (empty($sigPlaceholders)) {
+            return;
+        }
+
+        $signatures = [];
+
+        // 1. Pembina Ormawa
+        $pembinaSig = null;
+        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
+            $pembinaSig = $submission->approvalSteps()
+                ->whereHas('role', fn ($q) => $q->where('name', 'pembina_ormawa'))
+                ->whereNotNull('signature_path')
+                ->latest('id')
+                ->value('signature_path');
+        }
+        if (! $pembinaSig) {
+            $pembinaSig = $pembina?->signature_path;
+        }
+        if (! $pembinaSig) {
+            $pembinaSig = User::query()
+                ->whereHas('role', fn ($q) => $q->where('name', 'pembina_ormawa'))
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if ($pembinaPath = $this->resolveSignatureFilePath($pembinaSig)) {
+            $signatures['signature_pembina_ormawa'] = $pembinaPath;
+        }
+
+        // 2. Kaprodi
+        $kaprodiSig = null;
+        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
+            $kaprodiSig = $submission->approvalSteps()
+                ->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))
+                ->whereNotNull('signature_path')
+                ->latest('id')
+                ->value('signature_path');
+        }
+        if (! $kaprodiSig && ! $isBem && ! ($ormawa && $ormawa->isUkm())) {
+            $kaprodiSig = $kaprodi?->signature_path;
+            if (! $kaprodiSig) {
+                $kaprodiSig = User::query()
+                    ->whereHas('role', fn ($q) => $q->where('name', 'kaprodi'))
+                    ->whereNotNull('signature_path')
+                    ->value('signature_path');
+            }
+        }
+        if ($kaprodiPath = $this->resolveSignatureFilePath($kaprodiSig)) {
+            $signatures['signature_kaprodi'] = $kaprodiPath;
+        }
+
+        // 3. Kabag Kemahasiswaan
+        $kabagSig = null;
+        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
+            $kabagSig = $submission->approvalSteps()
+                ->whereHas('role', fn ($q) => $q->where('name', 'kabag_kemahasiswaan'))
+                ->whereNotNull('signature_path')
+                ->latest('id')
+                ->value('signature_path');
+        }
+        if (! $kabagSig) {
+            $kabagSig = User::query()
+                ->whereHas('role', fn ($q) => $q->where('name', 'kabag_kemahasiswaan'))
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if ($kabagPath = $this->resolveSignatureFilePath($kabagSig)) {
+            $signatures['signature_kabag_kemahasiswaan'] = $kabagPath;
+        }
+
+        // 4. Warek III
+        $warekSig = null;
+        if ($submission->relationLoaded('approvalSteps') || $submission->approvalSteps()->exists()) {
+            $warekSig = $submission->approvalSteps()
+                ->whereHas('role', fn ($q) => $q->where('name', 'warek'))
+                ->whereNotNull('signature_path')
+                ->latest('id')
+                ->value('signature_path');
+        }
+        if (! $warekSig) {
+            $warekSig = User::query()
+                ->whereHas('role', fn ($q) => $q->where('name', 'warek'))
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if ($warekPath = $this->resolveSignatureFilePath($warekSig)) {
+            $signatures['signature_warek'] = $warekPath;
+        }
+
+        // 5. Ketua Ormawa / Ketua Pelaksana / Presma
+        $leaderSig = $submitter?->signature_path;
+        if (! $leaderSig && $submission->ormawa_id) {
+            $leaderSig = User::query()
+                ->where('ormawa_id', $submission->ormawa_id)
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if (! $leaderSig) {
+            $leaderSig = User::query()
+                ->whereHas('role', fn ($q) => $q->whereIn('name', ['sekretaris_ormawa', 'superadmin']))
+                ->whereNotNull('signature_path')
+                ->value('signature_path');
+        }
+        if ($leaderPath = $this->resolveSignatureFilePath($leaderSig)) {
+            $signatures['signature_ketua_ormawa'] = $leaderPath;
+            $signatures['signature_ketua_pelaksana'] = $leaderPath;
+            $signatures['signature_presma'] = $leaderPath;
+        }
+
+        // Terapkan ke template processor
+        foreach ($sigPlaceholders as $placeholder) {
+            if (isset($signatures[$placeholder]) && file_exists($signatures[$placeholder])) {
+                try {
+                    $processor->setImageValue($placeholder, [
+                        'path'   => $signatures[$placeholder],
+                        'width'  => 195,
+                        'height' => 85,
+                        'ratio'  => true,
+                    ]);
+                } catch (\Throwable $e) {
+                    $processor->setValue($placeholder, '');
+                }
+            } else {
+                // Bersihkan placeholder agar teks ${...} tidak tampil pada dokumen
+                try {
+                    $processor->setValue($placeholder, '');
+                } catch (\Throwable $e) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolusi path file fisik dari string signature_path (mendukung disk local, public, atau path absolut).
+     */
+    protected function resolveSignatureFilePath(?string $signaturePath): ?string
+    {
+        if (! $signaturePath) {
+            return null;
+        }
+
+        if (file_exists($signaturePath)) {
+            return $signaturePath;
+        }
+
+        if (Storage::disk('local')->exists($signaturePath)) {
+            return Storage::disk('local')->path($signaturePath);
+        }
+
+        if (Storage::disk('public')->exists($signaturePath)) {
+            return Storage::disk('public')->path($signaturePath);
+        }
+
+        return null;
     }
 
     /**
@@ -907,16 +1080,18 @@ class DocumentGeneratorService
         }
 
         $modified = false;
+        $imageCounter = 0;
 
         // 1. Tangani paragraf yang memiliki perataan tengah (<w:jc w:val="center"/>) dan memuat <w:pict>
         // Konversi legacy VML <w:pict> ke DrawingML <w:drawing><wp:inline> standar modern
         $pattern = '/<w:p(?:\s+[^>]*)?>(?:(?!<\/w:p>).)*?<w:jc[^>]*w:val=[\'"]center[\'"][^>]*\/?>(?:(?!<\/w:p>).)*?<w:pict[^>]*>.*?<v:imagedata[^>]*r:id=[\'"]([^\'"]+)[\'"][^>]*>.*?<\/w:pict>(?:(?!<\/w:p>).)*?<\/w:p>/s';
 
-        $converted = preg_replace_callback($pattern, function (array $matches) use (&$modified): string {
+        $converted = preg_replace_callback($pattern, function (array $matches) use (&$modified, &$imageCounter): string {
             $pXml = $matches[0];
             if (preg_match('/<w:pict[^>]*>.*?<v:shape[^>]*style=[\'"]([^\'"]*)[\'"][^>]*>.*?<v:imagedata[^>]*r:id=[\'"]([^\'"]+)[\'"][^>]*>.*?<\/w:pict>/s', $pXml, $imgMatch)) {
                 $style = $imgMatch[1];
                 $rId = $imgMatch[2];
+                $imageCounter++;
 
                 // Deteksi dimensi gambar jika tersedia pada style v:shape (default 130px)
                 $cx = 1238250;
@@ -933,7 +1108,9 @@ class DocumentGeneratorService
                 }
 
                 $modified = true;
-                $drawingXml = '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="999" name="Logo Ormawa"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="999" name="Logo Ormawa"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="' . $rId . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+                $drawingId = 999 + $imageCounter;
+                $drawingName = ($imageCounter === 1) ? 'Logo Ormawa' : 'Tanda Tangan ' . $drawingId;
+                $drawingXml = '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="' . $drawingId . '" name="' . $drawingName . '"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="' . $drawingId . '" name="' . $drawingName . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="' . $rId . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
 
                 return str_replace($imgMatch[0], $drawingXml, $pXml);
             }
