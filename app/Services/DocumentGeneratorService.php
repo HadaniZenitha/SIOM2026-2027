@@ -55,7 +55,8 @@ class DocumentGeneratorService
 
     public function generateLpj(Lpj $lpj): string
     {
-        $lpj->loadMissing(['items', 'submission']);
+        $lpj->loadMissing(['items', 'submission', 'documents']);
+
         $submission = $lpj->submission;
 
         if (! $submission) {
@@ -67,7 +68,13 @@ class DocumentGeneratorService
             $lpj->setRelation('items', $submission->items);
         }
 
-        return $this->generateDocument($submission, 'lpj', $lpj->items);
+        return $this->generateDocument(
+            $submission,
+            'lpj',
+            $lpj->items,
+            null,
+            $lpj
+        );
     }
 
     public function generateSignedProposal(Submission $submission): string
@@ -221,7 +228,8 @@ class DocumentGeneratorService
         Submission $submission,
         string $type,
         ?Collection $budgetItems = null,
-        ?string $preferredFileName = null
+        ?string $preferredFileName = null,
+        ?Lpj $lpj = null
     ): string {
         $submission->load([
             'period',
@@ -459,10 +467,218 @@ class DocumentGeneratorService
 
         /* 7. PLACEHOLDER LPJ KHUSUS (foto/kwitansi) — isi dengan teks kosong jika tidak ada */
         $variables = $processor->getVariables();
-        $lpjSpecialPlaceholders = ['photo', 'photo_caption', 'receipt_scan', 'receipt_amount', 'receipt_caption'];
-        foreach ($lpjSpecialPlaceholders as $ph) {
-            if (in_array($ph, $variables, true)) {
-                $processor->setValue($ph, '');
+
+        /* SCAN NOTA KEGIATAN LPJ */
+        if ($type === 'lpj' && $lpj) {
+
+            $receipts = $lpj->documents()
+                ->where('type', 'nota')
+                ->get()
+                ->filter(function ($document) {
+
+                    $extension = strtolower(
+                        pathinfo($document->file_name, PATHINFO_EXTENSION)
+                    );
+
+                    return in_array(
+                        $extension,
+                        ['jpg', 'jpeg', 'png'],
+                        true
+                    ) && Storage::disk('local')->exists($document->file_path);
+                })
+                ->values();
+
+            // Kelompokkan dua nota dalam satu baris
+            $receiptRows = $receipts->chunk(2);
+
+            if ($receiptRows->isNotEmpty()) {
+
+                // Clone baris tabel berdasarkan jumlah kelompok nota
+                $processor->cloneRow(
+                    'receipt_scan_left',
+                    $receiptRows->count()
+                );
+
+                foreach ($receiptRows as $index => $row) {
+
+                    $number = $index + 1;
+
+                    $left = $row->get(0);
+                    $right = $row->get(1);
+
+                    // NOTA KIRI
+                    if ($left) {
+
+                        $processor->setImageValue(
+                            "receipt_scan_left#{$number}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $left->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_left#{$number}",
+                            '-'
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_left#{$number}",
+                            $left->file_name
+                        );
+                    } else {
+
+                        $processor->setValue(
+                            "receipt_scan_left#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_left#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_left#{$number}",
+                            ''
+                        );
+                    }
+
+                    // NOTA KANAN
+                    if ($right) {
+
+                        $processor->setImageValue(
+                            "receipt_scan_right#{$number}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $right->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_right#{$number}",
+                            '-'
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_right#{$number}",
+                            $right->file_name
+                        );
+                    } else {
+
+                        $processor->setValue(
+                            "receipt_scan_right#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_amount_right#{$number}",
+                            ''
+                        );
+
+                        $processor->setValue(
+                            "receipt_caption_right#{$number}",
+                            ''
+                        );
+                    }
+                }
+            } else {
+
+                // Jika tidak ada nota gambar
+                $processor->setValue('receipt_scan_left', '');
+                $processor->setValue('receipt_scan_right', '');
+
+                $processor->setValue('receipt_amount_left', '');
+                $processor->setValue('receipt_amount_right', '');
+
+                $processor->setValue('receipt_caption_left', '');
+                $processor->setValue('receipt_caption_right', '');
+            }
+        }
+
+        if ($type === 'lpj' && $lpj) {
+
+            $documentation = $lpj->documents()
+                ->where('type', 'dokumentasi')
+                ->get()
+                ->filter(function ($document) {
+                    $extension = strtolower(
+                        pathinfo($document->file_name, PATHINFO_EXTENSION)
+                    );
+
+                    return in_array($extension, ['jpg', 'jpeg', 'png'], true)
+                        && Storage::disk('local')->exists($document->file_path);
+                })
+                ->values();
+
+            // Kelompokkan dua foto untuk setiap baris
+            $rows = $documentation->chunk(2);
+
+            if ($rows->isNotEmpty()) {
+
+                $processor->cloneRow(
+                    'documentation_left',
+                    $rows->count()
+                );
+
+                foreach ($rows as $index => $images) {
+
+                    $rowNumber = $index + 1;
+
+                    $left = $images->get(0);
+                    $right = $images->get(1);
+
+                    // Foto kiri
+                    if ($left) {
+                        $processor->setImageValue(
+                            "documentation_left#{$rowNumber}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $left->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+                    } else {
+                        $processor->setValue(
+                            "documentation_left#{$rowNumber}",
+                            ''
+                        );
+                    }
+
+                    // Foto kanan
+                    if ($right) {
+                        $processor->setImageValue(
+                            "documentation_right#{$rowNumber}",
+                            [
+                                'path' => Storage::disk('local')->path(
+                                    $right->file_path
+                                ),
+                                'width' => 220,
+                                'height' => 165,
+                                'ratio' => true,
+                            ]
+                        );
+                    } else {
+                        $processor->setValue(
+                            "documentation_right#{$rowNumber}",
+                            ''
+                        );
+                    }
+                }
+            } else {
+                $processor->setValue('documentation_left', '');
+                $processor->setValue('documentation_right', '');
             }
         }
 
