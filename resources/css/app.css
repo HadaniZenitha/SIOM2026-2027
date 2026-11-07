@@ -547,6 +547,53 @@
     }
 }
 
+@media (max-width: 540px) {
+    .siom-guest-main {
+        padding: 0.75rem 0.5rem 1.5rem;
+    }
+    .siom-login-card-wrapper {
+        border-radius: 18px;
+        box-shadow: 4px 4px 0 #0f172a;
+        margin: 0.5rem auto;
+        width: 100%;
+    }
+    .siom-login-brand-panel {
+        padding: 1.35rem 1rem;
+    }
+    .siom-login-brand-title {
+        font-size: 1.35rem;
+    }
+    .siom-login-brand-sub {
+        font-size: 0.82rem;
+    }
+    .siom-login-features {
+        gap: 0.65rem;
+        margin-bottom: 0.85rem;
+    }
+    .siom-login-feature-item {
+        gap: 0.55rem;
+    }
+    .siom-login-feature-text h4 {
+        font-size: 0.84rem;
+    }
+    .siom-login-feature-text p {
+        font-size: 0.74rem;
+    }
+    .siom-login-form-panel {
+        padding: 1.35rem 1rem;
+    }
+    .siom-login-form-title {
+        font-size: 1.45rem;
+    }
+    .siom-login-form-sub {
+        font-size: 0.82rem;
+    }
+    .siom-guest-footer-bar {
+        padding: 0.75rem;
+        font-size: 0.72rem;
+    }
+}
+
 .siom-app-main {
     min-height: calc(100vh - 5rem);
     padding: clamp(1rem, 3vw, 2.5rem);
@@ -1550,18 +1597,182 @@
 .siom-dashboard .siom-step-col.is-rejected { background: #fee2e2; color: #991b1b; }
 
 @media (max-width: 767px) {
-    .siom-admin-page { padding: 1rem; }
+    /* Layout & Page Container */
+    .siom-app-main {
+        padding: 0.85rem 0.65rem;
+    }
+    .siom-admin-page {
+        padding: 0.85rem 0.65rem;
+    }
     .siom-admin-span-3,
     .siom-admin-span-4,
     .siom-admin-span-6,
-    .siom-admin-span-8 { grid-column: 1 / -1; }
-    .siom-admin-heading { align-items: stretch; flex-direction: column; }
-    .siom-admin-heading > .siom-admin-btn { align-self: flex-start; }
-    .siom-admin-budget-filter { align-items: stretch; flex-direction: column; }
-    .siom-admin-budget-filter .siom-admin-field { width: 100%; }
-    .siom-admin-toolbar { align-items: stretch; flex-direction: column; }
-    .siom-admin-toolbar .siom-admin-field { width: 100% !important; }
-    .siom-admin-modal { align-items: start; }
-    .siom-admin-modal-body { max-height: none; }
-    .siom-dashboard-heading { align-items: flex-start; flex-direction: column; }
+    .siom-admin-span-8 {
+        grid-column: 1 / -1;
+    }
+    .siom-admin-grid {
+        gap: 0.75rem;
+    }
+
+    /* Headings & Toolbars */
+    .siom-admin-heading {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .siom-admin-heading h1 {
+        font-size: 1.5rem;
+        line-height: 1.25;
+    }
+    .siom-admin-heading > .siom-admin-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .siom-admin-budget-filter {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 0.85rem;
+        gap: 0.65rem;
+    }
+    .siom-admin-budget-filter .siom-admin-field {
+        width: 100%;
+    }
+    .siom-admin-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+    .siom-admin-toolbar .siom-admin-field {
+        width: 100% !important;
+    }
+
+    /* Cards */
+    .siom-admin-card {
+        border-radius: 14px;
+        box-shadow: 3px 3px 0 var(--admin-ink);
+        margin-bottom: 1rem;
+    }
+    .siom-admin-card-body {
+        padding: 0.85rem 0.75rem;
+    }
+
+    /* Modals on Mobile */
+    .siom-admin-modal {
+        align-items: center;
+        padding: 0.5rem;
+    }
+    .siom-admin-modal-card {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 16px;
+        box-shadow: 4px 4px 0 var(--admin-ink);
+        max-height: 94vh;
+        max-height: 94dvh;
+        display: flex;
+        flex-direction: column;
+    }
+    .siom-admin-modal-head,
+    .siom-admin-modal-foot {
+        padding: 0.75rem 0.95rem;
+    }
+    .siom-admin-modal-foot {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    .siom-admin-modal-foot .siom-admin-btn {
+        width: 100%;
+    }
+    .siom-admin-modal-body {
+        max-height: calc(85vh - 7.5rem);
+        padding: 0.85rem;
+        overflow-y: auto;
+    }
+
+    /* Dashboard Mobile Specifics */
+    .siom-dashboard-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .siom-dashboard-heading h1 {
+        font-size: 1.45rem;
+        line-height: 1.25;
+    }
+    .siom-dashboard-shortcuts {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+        margin-top: 1rem;
+    }
+    .siom-dashboard-shortcut {
+        min-height: auto;
+        padding: 0.85rem;
+        border-radius: 14px;
+        gap: 0.5rem;
+        box-shadow: 2.5px 2.5px 0 var(--siom-ink);
+    }
+    .siom-dashboard-shortcut strong {
+        font-size: 0.92rem;
+    }
+    .siom-dashboard-shortcut i {
+        font-size: 1.3rem;
+    }
+
+    /* Touch-friendly inputs: 16px to prevent iOS Safari auto-zoom */
+    .siom-admin-field input,
+    .siom-admin-field select,
+    .siom-admin-field textarea,
+    .siom-form-control,
+    .form-control {
+        font-size: 16px !important;
+        min-height: 2.75rem;
+    }
+
+    /* Table Scroll Affordance */
+    .siom-admin-table-wrap,
+    .siom-budget-table-wrap,
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .siom-topbar-inner {
+        min-height: 3.8rem;
+        padding: 0.45rem 0.65rem;
+    }
+    .siom-nav-brand {
+        padding: 0.25rem 0.5rem;
+        gap: 0.45rem;
+    }
+    .siom-nav-logo-icon {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 0.9rem;
+    }
+    .siom-nav-title {
+        font-size: 0.9rem;
+    }
+    .siom-nav-sub {
+        display: none;
+    }
+    .siom-dashboard-shortcuts {
+        grid-template-columns: 1fr;
+    }
+    .siom-dashboard .siom-budget-stats {
+        grid-template-columns: 1fr;
+    }
+    .siom-admin-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.4rem;
+    }
+    .siom-admin-actions .siom-admin-btn {
+        width: 100%;
+    }
 }

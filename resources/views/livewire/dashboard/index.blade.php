@@ -690,8 +690,8 @@
                     if (!this.canvas) return;
                     const rect = this.canvas.parentElement.getBoundingClientRect();
                     const dpr = window.devicePixelRatio || 1;
-                    const displayWidth = Math.max(300, Math.floor(rect.width));
-                    const displayHeight = 240;
+                    const displayWidth = Math.max(220, Math.floor(rect.width));
+                    const displayHeight = window.innerWidth <= 480 ? 200 : 240;
 
                     if (this.canvas.width !== displayWidth * dpr || this.canvas.height !== displayHeight * dpr) {
                         this.canvas.width = displayWidth * dpr;

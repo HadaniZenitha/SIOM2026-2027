@@ -489,6 +489,61 @@
     align-items: center;
 }
 
+/* Responsivitas Mobile (HP / Layar Kecil) */
+@media (max-width: 768px) {
+    .siom-doc-preview-modal {
+        padding: 0;
+    }
+    .siom-doc-preview-card {
+        max-width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+    }
+    .siom-doc-preview-head {
+        padding: 0.65rem 0.85rem;
+        gap: 0.5rem;
+    }
+    .siom-doc-preview-icon {
+        display: none;
+    }
+    .siom-doc-preview-title {
+        max-width: 140px;
+        font-size: 0.92rem;
+    }
+    .siom-doc-preview-actions {
+        gap: 0.25rem;
+    }
+    .siom-doc-tool-btn {
+        padding: 0.35rem 0.55rem;
+        font-size: 0.8rem;
+    }
+    .siom-doc-close-btn {
+        width: 2.15rem;
+        height: 2.15rem;
+    }
+    .siom-doc-preview-content {
+        padding: 0.85rem 0.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .siom-doc-preview-zoom-group {
+        display: none !important;
+    }
+    .siom-doc-preview-title {
+        max-width: 110px;
+        font-size: 0.85rem;
+    }
+    .siom-doc-preview-badge,
+    .siom-doc-preview-format {
+        font-size: 0.62rem;
+        padding: 0.1rem 0.35rem;
+    }
+}
+
 /* Print Handling */
 @media print {
     body * {

@@ -1432,8 +1432,8 @@
                     if (!this.canvas || !this.ctx) return;
                     const rect = this.canvas.getBoundingClientRect();
                     const dpr = window.devicePixelRatio || 1;
-                    const w = Math.max(rect.width, 320);
-                    const h = rect.height > 50 ? rect.height : 200;
+                    const w = Math.max(Math.floor(rect.width), 220);
+                    const h = window.innerWidth <= 480 ? 180 : (rect.height > 50 ? rect.height : 200);
                     this.canvas.width = w * dpr;
                     this.canvas.height = h * dpr;
                     this.ctx.scale(dpr, dpr);
